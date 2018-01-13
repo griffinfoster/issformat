@@ -1,0 +1,93 @@
+\documentclass[10pt,a4paper]{article}
+
+%\usepackage{verbatim}
+%\usepackage{fancyhdr}
+%\usepackage{graphicx}
+%
+%\setlength\textwidth{6.5 in}
+%\setlength\oddsidemargin{0in}
+%\setlength\evensidemargin{0in}
+%\setlength\topmargin{-1.0 in}
+%\setlength\footskip{0 in}
+%\setlength\textheight{9in}
+
+\begin{document}
+
+\title{LOFAR International Single Station Metadata Definition}
+\author{Griffin Foster}
+\date{\today}
+\maketitle
+
+\begin{abstract}
+This is a technical description of the metadata format defined for use with
+LOFAR international single station data products including: total correlation
+matrices (ACC), beamlet statistics (BST), subband statistics (SST), and single
+subband correlation matrices (XST). A python module (\texttt{issformat}) has
+been written which implements this definition.
+\end{abstract}
+
+\section{Introduction}
+\label{sec:intro}
+
+\section{Metadata Key Definitions}
+
+\subsection{Generic Keys}
+
+\begin{itemize}
+    \item \textbf{Station:} station string, 5 characters, e.g. SE607, UK608,
+    IE613, ...
+    \item \textbf{RCUmode:} mode of each RCU, valid values: 1-7. If only one
+    entry is used then it is assumed all RCUs are the same mode. Otherwise, an
+    entry for each RCU is required.
+    \item \textbf{Timestamp:} date and time of the file.
+    \item \textbf{HBAElements:} optional, when using the HBA in a non-standard
+    mode by disabling elements in the tile, e.g. HBA `All-sky' mode, then this
+    key is used to store the setup of each tile. A tile state is encoded in a
+    4-digit hexidecimal string. Each hexidecimal character represents a row of
+    the tile.
+    \item \textbf{Special:} Extra entry to include comments for the observation.
+\end{itemize}
+
+\subsection{Total Correlation (ACC) Keys}
+
+\begin{itemize}
+    \item \textbf{Integration:} correlation integration length in seconds,
+    default: 1.
+\end{itemize}
+
+\subsection{Beamlet Statistics (BST) Keys}
+
+\begin{itemize}
+    \item \textbf{Integration:} correlation integration length in seconds.
+    \item \textbf{Bitmode:} beamlet bit mode, 16, 8, or 4 bit resulting in 244,
+    488, 976 possible beamlets respectively.
+    \item \textbf{Pol:} polarization of beamlet, X or Y.
+    \item \textbf{beamlets:}
+    \begin{itemize}
+        \item \textbf{ID:} beamlet ID number
+        \item \textbf{Pointing:} pointing in given coordinate system (theta,
+        phi, coord).
+        \item \textbf{Subband:} subband ID.
+        \item \textbf{RCUs:} RCUs in the beamlet.
+    \end{itemize}
+
+\end{itemize}
+
+\subsection{Subband Statistics (SST) Keys}
+
+\begin{itemize}
+    \item \textbf{RCU:} RCU ID.
+\end{itemize}
+
+\subsection{Subband Correlation (XST) Keys}
+
+\begin{itemize}
+    \item \textbf{Integration:} correlation integration length in seconds.
+    \item \textbf{Subband:} subband ID.
+\end{itemize}
+
+\section{Examples}
+
+\section{\texttt{issformat} use}
+
+\end{document}             % End of document.
