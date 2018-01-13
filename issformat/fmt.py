@@ -7,19 +7,22 @@ HDF5 wrapper support is optional
 import datetime
 import json
 
-# TODO: h5py optional
-# TODO: python2 and 3 compatible
 # TODO: unittests
+# TODO: class functions and inheritance
 # TODO: function:
-#   writeHDF5()
-#   readHDF5()
 #   writeJSON()
 #   readJSON()
+#   writeHDF5()
+#   readHDF5()
+# TODO: h5py optional
+# TODO: python2 and 3 compatible
 # TODO: scripts
 #   generate meta file from input
 #   convert raw file and input to hdf5
 #   convert raw and json meta file to hdf5
 #   convert hdf5 to raw and json meta file
+# TODO: setup.py, layout
+# TODO: definition document
 
 class statData(object):
     """ Statistics file super class all other classes inherit from
@@ -40,6 +43,8 @@ class statData(object):
     def setRCUmode(self, rcumode=None):
         if rcumode is None:
             self.rcumode = None
+        elif type(rcumode) is int:
+            self.rcumode = rcumode
         elif len(rcumode) == 1: # single RCUMODE (int), all RCUs are the same mode
             self.rcumode = int(rcumode)
         else: # Mixed RCU mode (list of length the number of RCUs)
@@ -75,6 +80,14 @@ class statData(object):
     def setSpecial(self, specialStr=None):
         self.special = specialStr
 
+    def printMeta(self):
+        print '\n', type(self).__name__
+        print 'STATION:', self.station
+        print 'RCUMode:', self.rcumode
+        print 'TIMESTAMP:', self.ts
+        print 'HBA ELEMENTS:', self.hbaElements
+        print 'SPECIAL:', self.special
+
     #######
 
     def writeHDF5(self, filename=None):
@@ -93,8 +106,9 @@ class ACC(statData):
     """ ACC cross-correlation class
 
     Attributes:
+        integration: seconds, default: 1
     """
-    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, integration=None):
+    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, integration=1):
 
         self.setStation(station)
         self.setRCUmode(rcumode)
@@ -108,6 +122,10 @@ class ACC(statData):
             self.integration = None
         else: # integration in seconds
             self.integration = int(integration)
+
+    def printMeta(self):
+        super(ACC, self).printMeta()
+        print 'INTEGRATION:', self.integration
 
     #######
 
@@ -128,7 +146,7 @@ class BST(statData):
 
     Attributes:
     """
-    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, bitmode=None):
+    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, bitmode=None, pol=None):
 
         self.setStation(station)
         self.setRCUmode(rcumode)
@@ -136,6 +154,7 @@ class BST(statData):
         self.setHBAelements(hbaStr)
         self.setSpecial(special)
         self.setBitmode(bitmode)
+        self.setPol(pol)
         self.beamlets = {}
 
     def setBitmode(self, bitmode=None):
@@ -143,6 +162,9 @@ class BST(statData):
             self.bitmode = None
         else: # bit mode 16, 8, or 4 bits
             self.bitmode = int(bitmode)
+
+    def setPol(self, pol=None):
+        self.pol = pol
 
     def setBeamlet(self, bid, theta, phi, coord, sb, rcus=None):
         # TODO: define coordinate systems and pointing units
@@ -159,6 +181,13 @@ class BST(statData):
             'sb' : sb,
             'rcus' : rcus
         }
+
+    def printMeta(self):
+        super(BST, self).printMeta()
+        print 'BITMODE:', self.bitmode
+        print 'NBEAMLETS:', len(self.beamlets)
+        for key, val in self.beamlets.iteritems():
+            print 'BEAMLET%i'%key, val
 
     #######
 
@@ -179,6 +208,24 @@ class SST(statData):
 
     Attributes:
     """
+    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, rcu=None):
+
+        self.setStation(station)
+        self.setRCUmode(rcumode)
+        self.setTimestamp(ts)
+        self.setHBAelements(hbaStr)
+        self.setSpecial(special)
+        self.setRCU(rcu)
+
+    def setRCU(self, rcu=None):
+        if rcu is None:
+            self.rcu = None
+        else: # RCU ID
+            self.rcu = int(rcu)
+
+    def printMeta(self):
+        super(SST, self).printMeta()
+        print 'RCU:', self.rcu
 
     #######
 
@@ -221,6 +268,11 @@ class XST(statData):
         else: # subband ID
             self.sb = int(sb)
 
+    def printMeta(self):
+        super(XST, self).printMeta()
+        print 'INTEGRATION:', self.integration
+        print 'SUBBAND:', self.sb
+
     #######
 
     def writeHDF5(self, filename=None):
@@ -243,5 +295,22 @@ def printHBAtile(hbaStr):
         print '%s {0:4b} |'.format(int(hbaStr[row],16))%(hbaStr[row])
     print '________'
 
-printHBAtile('fcff')
 
+if __name__ == '__main__':
+    
+    printHBAtile('fcff')
+
+    acc = ACC(station='UK608', rcumode=3, ts='20120611_124534')
+    acc.printMeta()
+
+    bst = BST(station='KAIRA', rcumode=3, ts='20170217_111340', pol='X')
+    bst.setBeamlet(0, 0., 0., 'AZEL', 180)
+    bst.setBeamlet(1, 0., 0., 'AZEL', 180)
+    bst.setBeamlet(2, 0., 0., 'AZEL', 180)
+    bst.printMeta()
+
+    sst = SST(station='KAIRA', rcumode=3, ts='20140430_153356', rcu=24) 
+    sst.printMeta()
+
+    xst = XST(station='IE613', rcumode=3, ts='20170728_184348', sb=180)
+    xst.printMeta()
