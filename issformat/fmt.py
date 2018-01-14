@@ -7,20 +7,24 @@ HDF5 wrapper support is optional
 import datetime
 import json
 
-# TODO: class functions and inheritance
+try:
+    import h5py
+    H5SUPPORT = True
+except ImportError:
+    H5SUPPORT = False
+
 # TODO: function:
-#   readJSON()
 #   writeHDF5()
 #   readHDF5()
-# TODO: unittests
+#	binary reader functions
 # TODO: scripts
 #   generate meta file from input
 #   convert raw file and input to hdf5
 #   convert raw and json meta file to hdf5
 #   convert hdf5 to raw and json meta file
-# TODO: h5py optional
+# TODO: unittests
 # TODO: python2 and 3 compatible
-# TODO: setup.py, layout
+# TODO: setup.py, layout, pip
 # TODO: definition document
 
 class statData(object):
@@ -28,13 +32,14 @@ class statData(object):
 
     Attributes:
     """
-    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None):
+    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, rawfile=None):
         
         self.setStation(station)
         self.setRCUmode(rcumode)
         self.setTimestamp(ts)
         self.setHBAelements(hbaStr)
         self.setSpecial(special)
+        self.setRawFile(rawfile)
 
     def setStation(self, station=None):
         self.station = station # Station ID string
@@ -53,7 +58,7 @@ class statData(object):
         if type(ts) is str: # string of format YYYYMMDD_HHMMSS
             self.ts = datetime.datetime(year=int(ts[:4]), month=int(ts[4:6]), day=int(ts[6:8]), hour=int(ts[9:11]), minute=int(ts[11:13]), second=int(ts[13:15]))
         elif type(ts) is datetime.datetime:
-            selfts. ts
+            self.ts = ts
         else:
             self.ts = None
 
@@ -79,6 +84,9 @@ class statData(object):
     def setSpecial(self, specialStr=None):
         self.special = specialStr
 
+    def setRawFile(self, rawfile=None):
+        self.rawfile = rawfile
+
     def printMeta(self):
         print '\n', type(self).__name__
         print 'STATION:', self.station
@@ -86,6 +94,7 @@ class statData(object):
         print 'TIMESTAMP:', self.ts
         print 'HBA ELEMENTS:', self.hbaElements
         print 'SPECIAL:', self.special
+        print 'RAWFILE:', self.rawfile
 
     def _buildDict(self):
         self.metaDict = {
@@ -94,7 +103,8 @@ class statData(object):
             'rcumode' : self.rcumode,
             'timestamp' : str(self.ts),
             'hbaelements' : self.hbaElements,
-            'special' : self.special
+            'special' : self.special,
+            'rawfile' : self.rawfile
         }
 
     def writeJSON(self, filename, printonly=False):
@@ -109,16 +119,24 @@ class statData(object):
             with open(filename, 'w') as fp:
                 json.dump(self.metaDict, fp, sort_keys=True, indent=4)
 
-    #######
+    def writeHDF5(self, filename):
+        """Write metadata and statistics data to HDF5 file
+        """
 
-    def writeHDF5(self, filename=None):
-        pass
+        h5 = h5py.File(filename, 'w')
 
-    def readHDF5(self, filename):
-        pass
+        h5.attrs['CLASS'] = type(self).__name__
 
-    def readJSON(self, filename):
-        pass
+		#dset = h5.create_dataset('data',
+        #                  shape=data_shape,
+        #                  dtype=data_dtype)
+
+        #dset.dims[0].label = "frequency"
+        #dset.dims[1].label = "feed_id"
+        #dset.dims[2].label = "time"
+
+        for key, val in self.metaDict.iteritems():
+            dset.attrs[key] = val
 
 class ACC(statData):
     """ ACC cross-correlation class
@@ -126,13 +144,14 @@ class ACC(statData):
     Attributes:
         integration: seconds, default: 1
     """
-    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, integration=1):
+    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, rawfile=None, integration=1):
 
         self.setStation(station)
         self.setRCUmode(rcumode)
         self.setTimestamp(ts)
         self.setHBAelements(hbaStr)
         self.setSpecial(special)
+        self.setRawFile(rawfile)
         self.setIntegration(integration)
 
     def setIntegration(self, integration=None):
@@ -149,29 +168,19 @@ class ACC(statData):
         super(ACC, self)._buildDict()
         self.metaDict['integration'] = self.integration
 
-    #######
-
-    def writeHDF5(self, filename=None):
-        pass
-
-    def readHDF5(self, filename):
-        pass
-
-    def readJSON(self, filename):
-        pass
-
 class BST(statData):
     """ BST beamlet statistics class
 
     Attributes:
     """
-    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, integration=1, bitmode=None, pol=None):
+    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, rawfile=None, integration=1, bitmode=None, pol=None):
 
         self.setStation(station)
         self.setRCUmode(rcumode)
         self.setTimestamp(ts)
         self.setHBAelements(hbaStr)
         self.setSpecial(special)
+        self.setRawFile(rawfile)
         self.setIntegration(integration)
         self.setBitmode(bitmode)
         self.setPol(pol)
@@ -221,30 +230,21 @@ class BST(statData):
         self.metaDict['integration'] = self.integration
         self.metaDict['bitmode'] = self.bitmode
         self.metaDict['beamlets'] = self.beamlets
-
-    #######
-
-    def writeHDF5(self, filename=None):
-        pass
-
-    def readHDF5(self, filename):
-        pass
-
-    def readJSON(self, filename):
-        pass
+        self.metaDict['pol'] = self.pol
 
 class SST(statData):
     """ SST subband statistics class
 
     Attributes:
     """
-    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, rcu=None):
+    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, rawfile=None, rcu=None):
 
         self.setStation(station)
         self.setRCUmode(rcumode)
         self.setTimestamp(ts)
         self.setHBAelements(hbaStr)
         self.setSpecial(special)
+        self.setRawFile(rawfile)
         self.setRCU(rcu)
 
     def setRCU(self, rcu=None):
@@ -261,29 +261,19 @@ class SST(statData):
         super(SST, self)._buildDict()
         self.metaDict['rcu'] = self.rcu
 
-    #######
-
-    def writeHDF5(self, filename=None):
-        pass
-
-    def readHDF5(self, filename):
-        pass
-
-    def readJSON(self, filename):
-        pass
-
 class XST(statData):
     """ XST cross-correlation class
 
     Attributes:
     """
-    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, integration=None, sb=None):
+    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, rawfile=None, integration=None, sb=None):
 
         self.setStation(station)
         self.setRCUmode(rcumode)
         self.setTimestamp(ts)
         self.setHBAelements(hbaStr)
         self.setSpecial(special)
+        self.setRawFile(rawfile)
         self.setIntegration(integration)
         self.setSubband(sb)
 
@@ -309,17 +299,6 @@ class XST(statData):
         self.metaDict['integration'] = self.integration
         self.metaDict['subband'] = self.sb
 
-    #######
-
-    def writeHDF5(self, filename=None):
-        pass
-
-    def readHDF5(self, filename):
-        pass
-
-    def readJSON(self, filename):
-        pass
-
 def printHBAtile(hbaStr):
     """Print active HBA tile elements based on hex string
     """
@@ -328,8 +307,57 @@ def printHBAtile(hbaStr):
         print '%s {0:4b} |'.format(int(hbaStr[row],16))%(hbaStr[row])
     print '________'
 
+def readJSON(filename):
+    """Read a JSON-formatted metadata file
+
+    filename: str, filename path
+
+    returns: statData class instance
+    """
+    with open(filename, 'r') as fp:
+        metaDict = json.load(fp)
+
+    if metaDict['datatype'] == 'ACC':
+        s = ACC()
+        s.setIntegration(metaDict['integration'])
+    if metaDict['datatype'] == 'BST':
+        s = BST()
+        s.setIntegration(metaDict['integration'])
+        s.setBitmode(metaDict['bitmode'])
+        s.setPol(metaDict['pol'])
+        for key, val in metaDict['beamlets'].iteritems():
+            s.setBeamlet(int(key), val['theta'], val['phi'], str(val['coord']), val['sb'], val['rcus'])
+    if metaDict['datatype'] == 'SST':
+        s = SST()
+        s.setRCU(metaDict['rcu'])
+    if metaDict['datatype'] == 'XST':
+        s = XST()
+        s.setIntegration(metaDict['integration'])
+        s.setSubband(metaDict['subband'])
+    
+    s.setStation(metaDict['station'])
+    s.setRCUmode(metaDict['rcumode'])
+    s.setTimestamp(datetime.datetime.strptime(metaDict['timestamp'], '%Y-%m-%d %H:%M:%S'))
+    s.setHBAelements(metaDict['hbaelements'])
+    s.setSpecial(metaDict['special'])
+    s.setRawFile(metaDict['rawfile'])
+
+    return s
+
+def readHDF5(filename):
+    pass
+
+def read(filename):
+    """Wrapper function for readJSON() and readHDF5(), selects based on file extension (.json or .h5)
+    """
+    if filename.endswith('.json'): return readJSON(filename)
+    elif filename.endswith('.h5'): return readHDF5(filename)
+    else:
+        print 'ERROR: file extension not understood, only .json and .h5 file types work with this function.'
 
 if __name__ == '__main__':
+
+    print 'h5 support:', H5SUPPORT
     
     printHBAtile('fcff')
 
@@ -337,6 +365,9 @@ if __name__ == '__main__':
     acc = ACC(station='UK608', rcumode=3, ts='20120611_124534')
     acc.printMeta()
     acc.writeJSON('20120611_124534_acc_512x192x192.json')
+
+    acc0 = readJSON('20120611_124534_acc_512x192x192.json')
+    acc0.printMeta()
 
     # 20170217_111340_bst_00X.dat
     bst = BST(station='KAIRA', rcumode=3, ts='20170217_111340', pol='X')
@@ -346,13 +377,22 @@ if __name__ == '__main__':
     bst.printMeta()
     bst.writeJSON('20170217_111340_bst_00X.json')
 
+    bst0 = readJSON('20170217_111340_bst_00X.json')
+    bst0.printMeta()
+
     # 20140430_153356_sst_rcu024.dat
     sst = SST(station='KAIRA', rcumode=3, ts='20140430_153356', rcu=24) 
     sst.printMeta()
     sst.writeJSON('20140430_153356_sst_rcu024.json')
 
+    sst0 = readJSON('20140430_153356_sst_rcu024.json')
+    sst0.printMeta()
+
     # 20170728_184348_sb180_xst.dat
     xst = XST(station='IE613', rcumode=3, ts='20170728_184348', sb=180)
     xst.printMeta()
     xst.writeJSON('20170728_184348_sb180_xst.json')
+
+    xst0 = readJSON('20170728_184348_sb180_xst.json')
+    xst0.printMeta()
 
