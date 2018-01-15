@@ -27,6 +27,15 @@ except ImportError:
 # TODO: setup.py, layout, pip
 # TODO: definition document
 
+"""
+From ASTRON Single Station wiki:
+HADEC or AZELGEO can be used to point to fixed position (north=0,0,AZELGEO, south=3.14159,0,AZELGEO, zenith=0,1.5708,AZELGEO).
+AZELGEO means geodetic Azimuth and Elevation (N through E).
+J2000 can be used to track an astonomical source (12h on the Terrestrial Time scale on 2000 jan 1).
+Other sources: JUPITER, MARS, MERCURY, MOON, NEPTUNE, PLUTO, SATURN, SUN, URANUS, VENUS
+"""
+COORD_SYSTEMS = ['J2000', 'HADEC', 'AZELGEO', 'ITRF', 'B1950', 'GALACTIC', 'ECLIPTIC', 'JUPITER', 'MARS', 'MERCURY', 'MOON', 'NEPTUNE', 'PLUTO', 'SATURN', 'SUN', 'URANUS', 'VENUS']
+
 class statData(object):
     """ Statistics file super class all other classes inherit from
 
@@ -202,13 +211,16 @@ class BST(statData):
         self.pol = pol
 
     def setBeamlet(self, bid, theta, phi, coord, sb, rcus=None):
-        # TODO: define coordinate systems and pointing units
         """
         bid: beamlet ID (int)
         (theta, phi, coord): pointing in given coordinate system (float, float, str)
         sb: subband ID (int)
         rcus: RCUs in the beamlet (list of ints)
         """
+        if type(coord) is str:
+            if not(coord.upper() in COORD_SYSTEMS): print 'WARNING: coordinate system %s not in defined list of coordinate systems:'%(coord), COORD_SYSTEMS
+            coord = coord.upper()
+
         self.beamlets[bid] = {
             'theta' : theta,
             'phi' : phi,
@@ -371,9 +383,9 @@ if __name__ == '__main__':
 
     # 20170217_111340_bst_00X.dat
     bst = BST(station='KAIRA', rcumode=3, ts='20170217_111340', pol='X')
-    bst.setBeamlet(0, 0., 0., 'AZEL', 180)
-    bst.setBeamlet(1, 0., 0., 'AZEL', 180)
-    bst.setBeamlet(2, 0., 0., 'AZEL', 180)
+    bst.setBeamlet(0, 0., 0., 'AZELGEO', 180)
+    bst.setBeamlet(1, 0., 0., 'AZELGEO', 180)
+    bst.setBeamlet(2, 0., 0., 'AZELGEO', 180)
     bst.printMeta()
     bst.writeJSON('20170217_111340_bst_00X.json')
 
