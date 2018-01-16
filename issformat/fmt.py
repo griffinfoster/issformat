@@ -6,6 +6,7 @@ HDF5 wrapper support is optional
 
 import datetime
 import json
+import numpy as np
 
 try:
     import h5py
@@ -16,7 +17,7 @@ except ImportError:
 # TODO: function:
 #   writeHDF5()
 #   readHDF5()
-#	binary reader functions
+#   standard modes function, e.g. all beamlets in one pointing with different subbands
 # TODO: scripts
 #   generate meta file from input
 #   convert raw file and input to hdf5
@@ -33,6 +34,7 @@ HADEC or AZELGEO can be used to point to fixed position (north=0,0,AZELGEO, sout
 AZELGEO means geodetic Azimuth and Elevation (N through E).
 J2000 can be used to track an astonomical source (12h on the Terrestrial Time scale on 2000 jan 1).
 Other sources: JUPITER, MARS, MERCURY, MOON, NEPTUNE, PLUTO, SATURN, SUN, URANUS, VENUS
+See station_data_cookbook_v1.1.pdf for more details
 """
 COORD_SYSTEMS = ['J2000', 'HADEC', 'AZELGEO', 'ITRF', 'B1950', 'GALACTIC', 'ECLIPTIC', 'JUPITER', 'MARS', 'MERCURY', 'MOON', 'NEPTUNE', 'PLUTO', 'SATURN', 'SUN', 'URANUS', 'VENUS']
 
@@ -71,24 +73,43 @@ class statData(object):
         else:
             self.ts = None
 
-    def setHBAelements(self, hbaStr=None):
-        # TODO: define tile counting order
-        # TODO: define element counting order
-        """HBA element string: four hex characters per element x number of elements
+    def setHBAelements(self, hbaConfig=None):
+        """
+        hbaConfig: string (4 x NANTS) or list (length NANTS)
 
-        Each character represents a row in the tile, 4 rows per tile
+        HBA element string: four hex characters per element x number of elements.
+        384 characters for a standard 96 tile international HBA station.
+        
+        Tile numbering order is based on RCU to tile mapping specific to a station.
+        
+        Element numbering starts from the top left of the tile when viewed from
+        above the tile and with the cable output to the bottom.
+        
+        This is used for putting the HBA tiles in special modes, such as 'all-sky'
+        imaging mode where only a single element is enables per tile. Enabled means
+        the element is set to 128 in the rspctl --hbadelays=... command. Disabled
+        means the element was set to 2.
+
+        Each character represents a row in the tile, 4 rows per tile. 
 
         Example: 
-            x 0 0 0 -> 8
-            0 x x 0 -> 6
-            x x x x -> f
-            0 0 0 x -> 1
+
+            setHBAelements(hbaStr=86f1...)
+
+            x 0 0 0 -> b1000 -> 8
+            0 x x 0 -> b0110 -> 6
+            x x x x -> b1111 -> f
+            0 0 0 x -> b0001 -> 1
             --> tile string: 86f1
+
+            rspctl --hbadelays=128,2,2,2,2,128,128,2,128,128,128,128,2,2,2,128
         """
-        if hbaStr is None:
+        if hbaConfig is None:
             self.hbaElements = None
+        elif type(hbaConfig) is list:
+            self.hbaElements = hbaConfig
         else:
-            self.hbaElements = [hbaStr[i:i+4] for i in range(0, len(hbaStr), 4)]
+            self.hbaElements = [hbaConfig[i:i+4] for i in range(0, len(hbaConfig), 4)]
 
     def setSpecial(self, specialStr=None):
         self.special = specialStr
@@ -367,8 +388,70 @@ def read(filename):
     else:
         print 'ERROR: file extension not understood, only .json and .h5 file types work with this function.'
 
+###########################################
+
+def acc2npy(filename, nant=96, npol=2):
+    """Read an ACC file and return a numpy array
+    filename: str, path to binary data file
+    nant: int, number of antennas/tiles in the array, 96 for an international station, 48 for KAIRA
+    npol: int, number of polarizations, typically 2
+
+    returns: (nints, nsb, nant*npol, nant*npol) complex array
+    """
+    nantpol = nant * npol
+    nsb = 512 # ACC have 512 subbands
+    nints = 1 # ACC only have a single integration
+    corrMatrix = np.fromfile(filename, dtype='complex') # read in the correlation matrix
+    return np.reshape(corrMatrix, (nints, nsb, nantpol, nantpol))
+
+def bst2npy(filename, bitmode=8):
+    """Read an BST file and return a numpy array
+    filename: str, path to binary data file
+    bitmode: int, 16 produces 244 beamlets, 8 produces 488 beamlets, 4 produces 976 beamlets
+
+    returns: (nints, nbeamlets) float array
+    """
+    if bitmode==16: nbeamlets = 244
+    elif bitmode==8: nbeamlets = 488
+    elif bitmode==4: nbeamlets = 976
+    else:
+        print 'WARNING: bit-mode %i not standard, only (16, 8, 4) in use, defaulting to 8 bit.'
+        nbeamlets = 488
+    d = np.fromfile(filename, dtype='float')
+    nints = d.shape[0] / nbeamlets
+    return np.reshape(d, (nints, nbeamlets))
+
+def sst2npy(filename):
+    """Read an SST file and return a numpy array
+    filename: str, path to binary data file
+
+    returns (nints, 512) float array
+    """
+    nsb = 512 # SST have 512 subbands
+    d = np.fromfile(filename, dtype='float')
+    nints = d.shape[0] / 512
+    return np.reshape(d, (nints, nsb))
+
+def xst2npy(filename, nant=96, npol=2):
+    """Read an XST file and return a numpy array
+    filename: str, path to binary data file
+    nant: int, number of antennas/tiles in the array, 96 for an international station, 48 for KAIRA
+    npol: int, number of polarizations, typically 2
+
+    returns: (nints, nsb, nant*npol, nant*npol) complex array
+    """
+    nantpol = nant * npol
+    nsb = 1 # XST only have a single subband
+    corrMatrix = np.fromfile(filename, dtype='complex') # read in the correlation matrix
+    nints = corrMatrix.shape[0]/(nantpol * nantpol) # number of integrations
+    return np.reshape(corrMatrix, (nints, nsb, nantpol, nantpol))
+
 if __name__ == '__main__':
 
+    import os
+
+    TESTDATADIR = '../test_data'
+    
     print 'h5 support:', H5SUPPORT
     
     printHBAtile('fcff')
@@ -376,10 +459,13 @@ if __name__ == '__main__':
     # 20120611_124534_acc_512x192x192.dat
     acc = ACC(station='UK608', rcumode=3, ts='20120611_124534')
     acc.printMeta()
-    acc.writeJSON('20120611_124534_acc_512x192x192.json')
+    acc.writeJSON(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.json'))
 
-    acc0 = readJSON('20120611_124534_acc_512x192x192.json')
+    acc0 = readJSON(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.json'))
     acc0.printMeta()
+
+    accData = acc2npy(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.dat'))
+    print 'ACC DATA SHAPE:', accData.shape
 
     # 20170217_111340_bst_00X.dat
     bst = BST(station='KAIRA', rcumode=3, ts='20170217_111340', pol='X')
@@ -387,24 +473,33 @@ if __name__ == '__main__':
     bst.setBeamlet(1, 0., 0., 'AZELGEO', 180)
     bst.setBeamlet(2, 0., 0., 'AZELGEO', 180)
     bst.printMeta()
-    bst.writeJSON('20170217_111340_bst_00X.json')
+    bst.writeJSON(os.path.join(TESTDATADIR, '20170217_111340_bst_00X.json'))
 
-    bst0 = readJSON('20170217_111340_bst_00X.json')
+    bst0 = readJSON(os.path.join(TESTDATADIR, '20170217_111340_bst_00X.json'))
     bst0.printMeta()
+
+    bstData = bst2npy(os.path.join(TESTDATADIR, '20170217_111340_bst_00X.dat'))
+    print 'BST DATA SHAPE:', bstData.shape
 
     # 20140430_153356_sst_rcu024.dat
     sst = SST(station='KAIRA', rcumode=3, ts='20140430_153356', rcu=24) 
     sst.printMeta()
-    sst.writeJSON('20140430_153356_sst_rcu024.json')
+    sst.writeJSON(os.path.join(TESTDATADIR, '20140430_153356_sst_rcu024.json'))
 
-    sst0 = readJSON('20140430_153356_sst_rcu024.json')
+    sst0 = readJSON(os.path.join(TESTDATADIR, '20140430_153356_sst_rcu024.json'))
     sst0.printMeta()
+
+    sstData = sst2npy(os.path.join(TESTDATADIR, '20140430_153356_sst_rcu024.dat'))
+    print 'SST DATA SHAPE:', sstData.shape
 
     # 20170728_184348_sb180_xst.dat
     xst = XST(station='IE613', rcumode=3, ts='20170728_184348', sb=180)
     xst.printMeta()
-    xst.writeJSON('20170728_184348_sb180_xst.json')
+    xst.writeJSON(os.path.join(TESTDATADIR, '20170728_184348_sb180_xst.json'))
 
-    xst0 = readJSON('20170728_184348_sb180_xst.json')
+    xst0 = readJSON(os.path.join(TESTDATADIR, '20170728_184348_sb180_xst.json'))
     xst0.printMeta()
+
+    xstData = xst2npy(os.path.join(TESTDATADIR, '20170728_184348_sb180_xst.dat'))
+    print 'XST DATA SHAPE:', xstData.shape
 
