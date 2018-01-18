@@ -1,5 +1,8 @@
 *.swp
 *.aux
+test_data/*.h5
+test_data/*.json
+test_data/*.dat
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
