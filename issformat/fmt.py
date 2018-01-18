@@ -14,18 +14,17 @@ try:
 except ImportError:
     H5SUPPORT = False
 
-# TODO: function:
-#   readHDF5()
-#   standard modes function, e.g. all beamlets in one pointing with different subbands
-# TODO: scripts
-#   generate meta file from input
-#   convert raw file and input to hdf5
-#   convert raw and json meta file to hdf5
-#   convert hdf5 to raw and json meta file
+# TODO: script
+#   input: opts output: json,hdf5
+#   input: opts,raw output: hdf5
+#   input: json,raw output: hdf5
+#   input: hdf5 output: json,raw
+# TODO: writeRaw()
+# TODO: function: standard modes function, e.g. all beamlets in one pointing with different subbands
 # TODO: unittests
 # TODO: python2 and 3 compatible
 # TODO: setup.py, layout, pip
-# TODO: definition document
+# TODO: definition document and code comment
 
 """
 From ASTRON Single Station wiki:
@@ -55,18 +54,27 @@ class statData(object):
         self.station = station # Station ID string
 
     def setRCUmode(self, rcumode=None):
+        """rcumode is either an integer (all RCUs are the same mode), a list of integers of length the number of RCUs, or None as a placeholder.
+        """
         if rcumode is None:
             self.rcumode = None
         elif type(rcumode) is int:
             self.rcumode = rcumode
+        elif type(rcumode) is np.int64: # HDF5 version
+            self.rcumode = int(rcumode)
+        elif type(rcumode) is np.ndarray: # HDF5 version
+            self.rcumode = rcumode.tolist()
         elif len(rcumode) == 1: # single RCUMODE (int), all RCUs are the same mode
             self.rcumode = int(rcumode)
         else: # Mixed RCU mode (list of length the number of RCUs)
             self.rcumode = map(int, rcumode)
 
     def setTimestamp(self, ts=None):
-        if type(ts) is str: # string of format YYYYMMDD_HHMMSS
+        # YYYY-MM-DD HH:MM:SS
+        if (type(ts) is str) and (len(ts)==15): # string of format YYYYMMDD_HHMMSS
             self.ts = datetime.datetime(year=int(ts[:4]), month=int(ts[4:6]), day=int(ts[6:8]), hour=int(ts[9:11]), minute=int(ts[11:13]), second=int(ts[13:15]))
+        elif type(ts) is str: # YYYY-MM-DD HH:MM:SS HDF5 version
+            self.ts = datetime.datetime.strptime(ts, '%Y-%m-%d %H:%M:%S')
         elif type(ts) is datetime.datetime:
             self.ts = ts
         else:
@@ -103,7 +111,7 @@ class statData(object):
 
             rspctl --hbadelays=128,2,2,2,2,128,128,2,128,128,128,128,2,2,2,128
         """
-        if hbaConfig is None:
+        if (hbaConfig is None) or np.isnan(hbaConfig):
             self.hbaElements = None
         elif type(hbaConfig) is list:
             self.hbaElements = hbaConfig
@@ -111,10 +119,16 @@ class statData(object):
             self.hbaElements = [hbaConfig[i:i+4] for i in range(0, len(hbaConfig), 4)]
 
     def setSpecial(self, specialStr=None):
-        self.special = specialStr
+        if type(specialStr) is str: self.special = specialStr
+        elif type(specialStr) is unicode: self.special = str(specialStr) # JSON version
+        elif specialStr is None: self.special = specialStr
+        elif np.isnan(specialStr): self.special = None # HDF5 version
 
     def setRawFile(self, rawfile=None):
-        self.rawfile = rawfile
+        if type(rawfile) is str: self.rawfile = rawfile
+        elif type(rawfile) is unicode: self.rawfile = str(rawfile) # JSON version
+        elif rawfile is None: self.rawfile = rawfile
+        elif np.isnan(rawfile): self.rawfile = None # HDF5 version
 
     def setArrayProp(self, nants, npol):
         # TODO: this information could be extracted based on the station ID
@@ -175,6 +189,8 @@ class ACC(statData):
     def setIntegration(self, integration=None):
         if integration is None:
             self.integration = None
+        elif np.isnan(integration):
+            self.integration = None # HDF5 version
         else: # integration in seconds
             self.integration = int(integration)
 
@@ -241,6 +257,8 @@ class BST(statData):
     def setIntegration(self, integration=None):
         if integration is None:
             self.integration = None
+        elif np.isnan(integration):
+            self.integration = None # HDF5 version
         else: # integration in seconds
             self.integration = int(integration)
 
@@ -260,6 +278,13 @@ class BST(statData):
         sb: subband ID (int)
         rcus: RCUs in the beamlet (list of ints)
         """
+        # HDF5 version type checks
+        if type(theta)==np.float64: theta = float(theta)
+        if type(phi)==np.float64: phi = float(phi)
+        if type(sb)==np.int64: sb = int(sb)
+        if rcus is None: pass
+        elif np.isnan(rcus): rcus = None
+
         if type(coord) is str:
             if not(coord.upper() in COORD_SYSTEMS): print 'WARNING: coordinate system %s not in defined list of coordinate systems:'%(coord), COORD_SYSTEMS
             coord = coord.upper()
@@ -310,7 +335,7 @@ class BST(statData):
         dset.dims[1].label = "beamlet"
 
         for key, val in self.metaDict.iteritems():
-            print key, val
+            #print key, val
             if val is None: dset.attrs[key] = np.nan
             elif key.startswith('beamlets'): # the beamlet dicts need to be unwound to store as HDF5 attributes
                 for bkey, bval in val.iteritems():
@@ -347,6 +372,8 @@ class SST(statData):
     def setRCU(self, rcu=None):
         if rcu is None:
             self.rcu = None
+        elif type(rcu) is np.int64: # HDF5 version
+            self.rcu = int(rcu)
         else: # RCU ID
             self.rcu = int(rcu)
 
@@ -410,6 +437,8 @@ class XST(statData):
     def setIntegration(self, integration=None):
         if integration is None:
             self.integration = None
+        elif np.isnan(integration):
+            self.integration = None # HDF5 version
         else: # integration in seconds
             self.integration = int(integration)
 
@@ -504,12 +533,79 @@ def readJSON(filename):
     s.setTimestamp(datetime.datetime.strptime(metaDict['timestamp'], '%Y-%m-%d %H:%M:%S'))
     s.setHBAelements(metaDict['hbaelements'])
     s.setSpecial(metaDict['special'])
+
     s.setRawFile(metaDict['rawfile'])
 
     return s
 
-def readHDF5(filename):
-    pass
+def readHDF5(filename, getdata=False):
+    """Read an HDF5 file and return a class instance of the meta data and the raw data (optional)
+    filename: str, path to HDF5
+    getdata: boolean, if true return the raw data as a numpy array also
+
+    returns: statData instance, numpy array (optional)
+    """
+    h5 = h5py.File(filename, 'r')
+    
+    if h5.attrs['CLASS']=='ACC':
+        s = ACC(station = h5['data'].attrs['station'],
+                rcumode = h5['data'].attrs['rcumode'],
+                ts = h5['data'].attrs['timestamp'],
+                hbaStr = h5['data'].attrs['hbaelements'],
+                special = h5['data'].attrs['special'],
+                rawfile = h5['data'].attrs['rawfile'],
+                integration = h5['data'].attrs['integration'])
+
+    elif h5.attrs['CLASS']=='BST':
+        s = BST(station = h5['data'].attrs['station'],
+                rcumode = h5['data'].attrs['rcumode'],
+                ts = h5['data'].attrs['timestamp'],
+                hbaStr = h5['data'].attrs['hbaelements'],
+                special = h5['data'].attrs['special'],
+                rawfile = h5['data'].attrs['rawfile'],
+                integration = h5['data'].attrs['integration'],
+                pol = h5['data'].attrs['pol'],
+                bitmode = h5['data'].attrs['bitmode'])
+
+        # Find all the beamlets
+        for bkey in h5['data'].attrs.iterkeys():
+            if bkey.endswith('_coord'): # a beamlet
+                bid = int(bkey[7:10])
+                s.setBeamlet(bid, theta = h5['data'].attrs['beamlet%03i_theta'%bid],
+                                  phi = h5['data'].attrs['beamlet%03i_phi'%bid],
+                                  coord = h5['data'].attrs['beamlet%03i_coord'%bid],
+                                  sb = h5['data'].attrs['beamlet%03i_sb'%bid],
+                                  rcus=h5['data'].attrs['beamlet%03i_rcus'%bid])
+
+    elif h5.attrs['CLASS']=='SST':
+        s = SST(station = h5['data'].attrs['station'],
+                rcumode = h5['data'].attrs['rcumode'],
+                ts = h5['data'].attrs['timestamp'],
+                hbaStr = h5['data'].attrs['hbaelements'],
+                special = h5['data'].attrs['special'],
+                rawfile = h5['data'].attrs['rawfile'],
+                rcu = h5['data'].attrs['rcu'])
+
+    elif h5.attrs['CLASS']=='XST':
+        print h5['data'].attrs['subband'], type(h5['data'].attrs['subband'])
+        s = XST(station = h5['data'].attrs['station'],
+                rcumode = h5['data'].attrs['rcumode'],
+                ts = h5['data'].attrs['timestamp'],
+                hbaStr = h5['data'].attrs['hbaelements'],
+                special = h5['data'].attrs['special'],
+                rawfile = h5['data'].attrs['rawfile'],
+                integration = h5['data'].attrs['integration'],
+                sb = h5['data'].attrs['subband'])
+    else:
+        print 'ERROR: unknown class type'
+        return 0
+    
+    if getdata: dd = h5['data']
+
+    h5.close
+
+    if getdata: return s, dd
+    else: return s
 
 def read(filename):
     """Wrapper function for readJSON() and readHDF5(), selects based on file extension (.json or .h5)
@@ -587,7 +683,9 @@ if __name__ == '__main__':
 
     # 20120611_124534_acc_512x192x192.dat
     acc = ACC(station='UK608', rcumode=3, ts='20120611_124534')
+    acc.setRawFile(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.dat'))
     acc.printMeta()
+
     acc.writeJSON(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.json'))
 
     acc0 = readJSON(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.json'))
@@ -596,8 +694,11 @@ if __name__ == '__main__':
     accData = acc2npy(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.dat'))
     print 'ACC DATA SHAPE:', accData.shape
 
-    acc.setRawFile(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.dat'))
     acc.writeHDF5(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.h5'))
+
+    acc1, acc1Data = readHDF5(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.h5'), getdata=True)
+    acc1.printMeta()
+    print acc1Data.shape
 
     # 20170217_111340_bst_00X.dat
     bst = BST(station='KAIRA', rcumode=3, ts='20170217_111340', pol='X')
@@ -616,6 +717,10 @@ if __name__ == '__main__':
     bst.setRawFile(os.path.join(TESTDATADIR, '20170217_111340_bst_00X.dat'))
     bst.writeHDF5(os.path.join(TESTDATADIR, '20170217_111340_bst_00X.h5'))
 
+    xst1, xst1Data = readHDF5(os.path.join(TESTDATADIR, '20170217_111340_bst_00X.h5'), getdata=True)
+    xst1.printMeta()
+    print xst1Data.shape
+
     # 20140430_153356_sst_rcu024.dat
     sst = SST(station='KAIRA', rcumode=3, ts='20140430_153356', rcu=24) 
     sst.printMeta()
@@ -630,6 +735,10 @@ if __name__ == '__main__':
     sst.setRawFile(os.path.join(TESTDATADIR, '20140430_153356_sst_rcu024.dat'))
     sst.writeHDF5(os.path.join(TESTDATADIR, '20140430_153356_sst_rcu024.h5'))
 
+    sst1, sst1Data = readHDF5(os.path.join(TESTDATADIR, '20140430_153356_sst_rcu024.h5'), getdata=True)
+    sst1.printMeta()
+    print sst1Data.shape
+
     # 20170728_184348_sb180_xst.dat
     xst = XST(station='IE613', rcumode=3, ts='20170728_184348', sb=180)
     xst.printMeta()
@@ -643,4 +752,8 @@ if __name__ == '__main__':
 
     xst.setRawFile(os.path.join(TESTDATADIR, '20170728_184348_sb180_xst.dat'))
     xst.writeHDF5(os.path.join(TESTDATADIR, '20170728_184348_sb180_xst.h5'))
+
+    xst1, xst1Data = readHDF5(os.path.join(TESTDATADIR, '20170728_184348_sb180_xst.h5'), getdata=True)
+    xst1.printMeta()
+    print xst1Data.shape
 
