@@ -10,6 +10,9 @@ Can be used to:
 Input options override JSON/HDF5 input metadata, to override an option to be type None, use 'none' string
 """
 
+# python 2 and 3 support
+from __future__ import print_function
+
 import sys,os
 import fmt
 
@@ -75,18 +78,18 @@ if __name__ == '__main__':
             s = fmt.read(fn)
         elif fn.endswith('.dat'): # raw statistics file
             if opts.sclass is None:
-                print 'WARNING: --sclass option not set, class unknown, skipping file read'
+                print('WARNING: --sclass option not set, class unknown, skipping file read')
             else:
                 if opts.sclass.upper().startswith('ACC'): dd = fmt.acc2npy(fn, opts.nant, opts.npol) 
                 elif opts.sclass.upper().startswith('BST'):
-                    if opts.bitmode is None: print 'WARNING: --bitmode option not set'
+                    if opts.bitmode is None: print('WARNING: --bitmode option not set')
                     dd = fmt.bst2npy(fn, opts.bitmode)
                 elif opts.sclass.upper().startswith('SST'): dd = fmt.sst2npy(fn) 
                 elif opts.sclass.upper().startswith('XST'): dd = fmt.xst2npy(fn, opts.nant, opts.npol) 
 
     # generate a metadata instance or override metadata
     if (opts.sclass is None) and (s is None):
-        print 'ERROR: --sclass is nor defined and there is no input metadata file, can not go on.'
+        print('ERROR: --sclass is nor defined and there is no input metadata file, can not go on.')
         exit()
 
     elif not(s is None): # check for any options override
@@ -207,17 +210,17 @@ if __name__ == '__main__':
     else: oprefix = opts.oprefix
     if 'raw' in omodes:
         oraw = oprefix + '.dat'
-        print 'Writing data to RAW', oraw
+        print('Writing data to RAW', oraw)
         if type(s).__name__=='ACC': fmt.npy2acc(oraw)
         elif type(s).__name__=='BST': fmt.npy2bst(oraw)
         elif type(s).__name__=='SST': fmt.npy2sst(oraw)
         elif type(s).__name__=='XST': fmt.npy2xst(oraw)
     if 'json' in omodes:
         ojson = oprefix + '.json'
-        print 'Writing data to JSON', ojson
+        print('Writing data to JSON', ojson)
         s.writeJSON(ojson)
     if 'hdf5' in omodes:
         ohdf5 = oprefix + '.h5'
-        print 'Writing data to HDF5', ohdf5
+        print('Writing data to HDF5', ohdf5)
         s.writeHDF5(ohdf5)
 

@@ -19,8 +19,7 @@ except ImportError:
 
 # TODO: definition document and code comment
 # TODO: unittests
-# TODO: python2 and 3 compatible
-# TODO: setup.py, layout, pip
+# TODO: setup.py, layout, pip, README
 
 """
 From ASTRON Single Station wiki:
