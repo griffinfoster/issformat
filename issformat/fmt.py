@@ -4,6 +4,9 @@ Wrapper classes for LOFAR staion ACC, XST, SST, BST files
 HDF5 wrapper support is optional
 """
 
+# python 2 and 3 support
+from __future__ import print_function
+
 import datetime
 import json
 import numpy as np
@@ -61,7 +64,7 @@ class statData(object):
         elif len(rcumode) == 1: # single RCUMODE (int), all RCUs are the same mode
             self.rcumode = int(rcumode)
         else: # Mixed RCU mode (list of length the number of RCUs)
-            self.rcumode = map(int, rcumode)
+            self.rcumode = list(map(int, rcumode))
 
     def setTimestamp(self, ts=None):
         # YYYY-MM-DD HH:MM:SS
@@ -113,18 +116,27 @@ class statData(object):
             self.hbaElements = [hbaConfig[i:i+4] for i in range(0, len(hbaConfig), 4)]
 
     def setSpecial(self, specialStr=None):
-        if type(specialStr) is str: self.special = specialStr
-        elif type(specialStr) is unicode: self.special = str(specialStr) # JSON version
-        elif specialStr is None: self.special = specialStr
-        elif np.isnan(specialStr): self.special = None # HDF5 version
+        #if type(specialStr) is str: self.special = specialStr
+        ##elif type(specialStr) is unicode: self.special = str(specialStr) # JSON version # in py3 str==unicode
+        #elif specialStr is None: self.special = specialStr
+        #elif np.isnan(specialStr): self.special = None # HDF5 version
+
+        if specialStr is None: self.special = specialStr
+        elif isinstance(specialStr, float): self.special = None # HDF5 version, np.nan
+        else: self.special = specialStr
 
     def setRawFile(self, rawfile=None):
-        if type(rawfile) is str: self.rawfile = rawfile
-        elif type(rawfile) is unicode: self.rawfile = str(rawfile) # JSON version
-        elif rawfile is None: self.rawfile = rawfile
-        elif np.isnan(rawfile): self.rawfile = None # HDF5 version
+        #if type(rawfile) is str: self.rawfile = rawfile
+        ##elif type(rawfile) is unicode: self.rawfile = str(rawfile) # JSON version # in py3 str==unicode
+        #elif rawfile is None: self.rawfile = rawfile
+        #elif np.isnan(rawfile): self.rawfile = None # HDF5 version
+
+        if rawfile is None: self.rawfile = rawfile
+        elif isinstance(rawfile, float): self.rawfile = None # HDF5 version, np.nan
+        else: self.rawfile = rawfile
 
     def setIntegration(self, integration=None):
+        print(integration, type(integration))
         if integration is None:
             self.integration = None
         elif np.isnan(integration):
@@ -138,13 +150,13 @@ class statData(object):
         self.npol = npol
 
     def printMeta(self):
-        print '\n', type(self).__name__
-        print 'STATION:', self.station
-        print 'RCUMode:', self.rcumode
-        print 'TIMESTAMP:', self.ts
-        print 'HBA ELEMENTS:', self.hbaElements
-        print 'SPECIAL:', self.special
-        print 'RAWFILE:', self.rawfile
+        print('\n', type(self).__name__)
+        print('STATION:', self.station)
+        print('RCUMode:', self.rcumode)
+        print('TIMESTAMP:', self.ts)
+        print('HBA ELEMENTS:', self.hbaElements)
+        print('SPECIAL:', self.special)
+        print('RAWFILE:', self.rawfile)
 
     def _buildDict(self):
         self.metaDict = {
@@ -154,7 +166,8 @@ class statData(object):
             'timestamp' : str(self.ts),
             'hbaelements' : self.hbaElements,
             'special' : self.special,
-            'rawfile' : self.rawfile
+            'rawfile' : self.rawfile,
+            'integration' : self.integration
         }
 
     def writeJSON(self, filename, printonly=False):
@@ -164,7 +177,7 @@ class statData(object):
         """
         self._buildDict()
         if printonly:
-            print json.dumps(self.metaDict, sort_keys=True, indent=4)
+            print(json.dumps(self.metaDict, sort_keys=True, indent=4))
         else:
             with open(filename, 'w') as fp:
                 json.dump(self.metaDict, fp, sort_keys=True, indent=4)
@@ -190,19 +203,22 @@ class ACC(statData):
 
     def printMeta(self):
         super(ACC, self).printMeta()
-        print 'INTEGRATION:', self.integration
+        print('INTEGRATION:', self.integration)
 
     def _buildDict(self):
         super(ACC, self)._buildDict()
-        self.metaDict['integration'] = self.integration
 
     def writeHDF5(self, filename):
         """Write metadata and statistics data to HDF5 file
         filename: str, output HDF5 filename
         """
 
+        if not H5SUPPORT:
+            print('ERROR: HDF5 is not supported, you need to install h5py')
+            return 0
+
         if self.rawfile is None:
-            print 'WARNING: rawfile not set, writing HDF5 file with an empty dataset'
+            print('WARNING: rawfile not set, writing HDF5 file with an empty dataset')
             dd = np.zeros((1, 1, 1, 1)) # place holder TODO: there is probably a better thing to do here
         else:
             dd = acc2npy(self.rawfile, nant=self.nants, npol=self.npol)
@@ -220,7 +236,8 @@ class ACC(statData):
         dset.dims[2].label = "antpol1"
         dset.dims[3].label = "antpol2"
 
-        for key, val in self.metaDict.iteritems():
+        #for key, val in self.metaDict.iteritems(): #py2 only
+        for key, val in self.metaDict.items():
             if val is None: dset.attrs[key] = np.nan
             else: dset.attrs[key] = val
 
@@ -228,7 +245,7 @@ class ACC(statData):
 
         h5.close()
 
-        print 'HDF5: written to', filename
+        print('HDF5: written to', filename)
 
 class BST(statData):
     """ BST beamlet statistics class
@@ -274,7 +291,7 @@ class BST(statData):
         elif np.isnan(rcus): rcus = None
 
         if type(coord) is str:
-            if not(coord.upper() in COORD_SYSTEMS): print 'WARNING: coordinate system %s not in defined list of coordinate systems:'%(coord), COORD_SYSTEMS
+            if not(coord.upper() in COORD_SYSTEMS): print('WARNING: coordinate system %s not in defined list of coordinate systems:'%(coord), COORD_SYSTEMS)
             coord = coord.upper()
 
         self.beamlets[bid] = {
@@ -287,15 +304,15 @@ class BST(statData):
 
     def printMeta(self):
         super(BST, self).printMeta()
-        print 'INTEGRATION:', self.integration
-        print 'BITMODE:', self.bitmode
-        print 'NBEAMLETS:', len(self.beamlets)
-        for key, val in self.beamlets.iteritems():
-            print 'BEAMLET%i'%key, val
+        print('INTEGRATION:', self.integration)
+        print('BITMODE:', self.bitmode)
+        print('NBEAMLETS:', len(self.beamlets))
+        #for key, val in self.beamlets.iteritems(): #py2 only
+        for key, val in self.beamlets.items():
+            print('BEAMLET%i'%key, val)
 
     def _buildDict(self):
         super(BST, self)._buildDict()
-        self.metaDict['integration'] = self.integration
         self.metaDict['bitmode'] = self.bitmode
         self.metaDict['beamlets'] = self.beamlets
         self.metaDict['pol'] = self.pol
@@ -305,8 +322,12 @@ class BST(statData):
         filename: str, output HDF5 filename
         """
 
+        if not H5SUPPORT:
+            print('ERROR: HDF5 is not supported, you need to install h5py')
+            return 0
+
         if self.rawfile is None:
-            print 'WARNING: rawfile not set, writing HDF5 file with an empty dataset'
+            print('WARNING: rawfile not set, writing HDF5 file with an empty dataset')
             dd = np.zeros((1, 1)) # place holder TODO: there is probably a better thing to do here
         else:
             dd = bst2npy(self.rawfile, bitmode=self.bitmode)
@@ -322,11 +343,13 @@ class BST(statData):
         dset.dims[0].label = "time"
         dset.dims[1].label = "beamlet"
 
-        for key, val in self.metaDict.iteritems():
+        #for key, val in self.metaDict.iteritems(): # py2 only
+        for key, val in self.metaDict.items():
             #print key, val
             if val is None: dset.attrs[key] = np.nan
             elif key.startswith('beamlets'): # the beamlet dicts need to be unwound to store as HDF5 attributes
-                for bkey, bval in val.iteritems():
+                #for bkey, bval in val.iteritems(): # py2 only
+                for bkey, bval in val.items():
                     # ex. bkey: 0 bval: {'rcus': None, 'theta': 0.0, 'phi': 0.0, 'coord': 'AZELGEO', 'sb': 180}
                     dset.attrs['beamlet%03i_theta'%bkey] = bval['theta']
                     dset.attrs['beamlet%03i_phi'%bkey] = bval['phi']
@@ -340,7 +363,7 @@ class BST(statData):
 
         h5.close()
 
-        print 'HDF5: written to', filename
+        print('HDF5: written to', filename)
 
 class SST(statData):
     """ SST subband statistics class
@@ -368,7 +391,7 @@ class SST(statData):
 
     def printMeta(self):
         super(SST, self).printMeta()
-        print 'RCU:', self.rcu
+        print('RCU:', self.rcu)
 
     def _buildDict(self):
         super(SST, self)._buildDict()
@@ -379,8 +402,12 @@ class SST(statData):
         filename: str, output HDF5 filename
         """
 
+        if not H5SUPPORT:
+            print('ERROR: HDF5 is not supported, you need to install h5py')
+            return 0
+
         if self.rawfile is None:
-            print 'WARNING: rawfile not set, writing HDF5 file with an empty dataset'
+            print('WARNING: rawfile not set, writing HDF5 file with an empty dataset')
             dd = np.zeros((1, 1)) # place holder TODO: there is probably a better thing to do here
         else:
             dd = sst2npy(self.rawfile)
@@ -396,7 +423,8 @@ class SST(statData):
         dset.dims[0].label = "time"
         dset.dims[1].label = "subband"
 
-        for key, val in self.metaDict.iteritems():
+        #for key, val in self.metaDict.iteritems(): # py2 only
+        for key, val in self.metaDict.items():
             if val is None: dset.attrs[key] = np.nan
             else: dset.attrs[key] = val
 
@@ -404,7 +432,7 @@ class SST(statData):
 
         h5.close()
 
-        print 'HDF5: written to', filename
+        print('HDF5: written to', filename)
 
 class XST(statData):
     """ XST cross-correlation class
@@ -431,12 +459,11 @@ class XST(statData):
 
     def printMeta(self):
         super(XST, self).printMeta()
-        print 'INTEGRATION:', self.integration
-        print 'SUBBAND:', self.sb
+        print('INTEGRATION:', self.integration)
+        print('SUBBAND:', self.sb)
 
     def _buildDict(self):
         super(XST, self)._buildDict()
-        self.metaDict['integration'] = self.integration
         self.metaDict['subband'] = self.sb
 
     def writeHDF5(self, filename):
@@ -444,8 +471,12 @@ class XST(statData):
         filename: str, output HDF5 filename
         """
 
+        if not H5SUPPORT:
+            print('ERROR: HDF5 is not supported, you need to install h5py')
+            return 0
+
         if self.rawfile is None:
-            print 'WARNING: rawfile not set, writing HDF5 file with an empty dataset'
+            print('WARNING: rawfile not set, writing HDF5 file with an empty dataset')
             dd = np.zeros((1, 1, 1, 1)) # place holder TODO: there is probably a better thing to do here
         else:
             dd = xst2npy(self.rawfile, nant=self.nants, npol=self.npol)
@@ -463,7 +494,8 @@ class XST(statData):
         dset.dims[2].label = "antpol1"
         dset.dims[3].label = "antpol2"
 
-        for key, val in self.metaDict.iteritems():
+        #for key, val in self.metaDict.iteritems(): # py2 only
+        for key, val in self.metaDict.items():
             if val is None: dset.attrs[key] = np.nan
             else: dset.attrs[key] = val
 
@@ -471,15 +503,15 @@ class XST(statData):
 
         h5.close()
 
-        print 'HDF5: written to', filename
+        print('HDF5: written to', filename)
 
 def printHBAtile(hbaStr):
     """Print active HBA tile elements based on hex string
     """
-    print '________\n'
+    print('________\n')
     for row in range(4):
-        print '%s {0:4b} |'.format(int(hbaStr[row],16))%(hbaStr[row])
-    print '________'
+        print('%s {0:4b} |'.format(int(hbaStr[row],16))%(hbaStr[row]))
+    print('________')
 
 def readJSON(filename):
     """Read a JSON-formatted metadata file
@@ -493,24 +525,24 @@ def readJSON(filename):
 
     if metaDict['datatype'] == 'ACC':
         s = ACC()
-        s.setIntegration(metaDict['integration'])
     if metaDict['datatype'] == 'BST':
         s = BST()
-        s.setIntegration(metaDict['integration'])
         s.setBitmode(metaDict['bitmode'])
         s.setPol(metaDict['pol'])
-        for key, val in metaDict['beamlets'].iteritems():
+        #for key, val in metaDict['beamlets'].iteritems(): # py2 only
+        for key, val in metaDict['beamlets'].items():
             s.setBeamlet(int(key), val['theta'], val['phi'], str(val['coord']), val['sb'], val['rcus'])
     if metaDict['datatype'] == 'SST':
         s = SST()
         s.setRCU(metaDict['rcu'])
     if metaDict['datatype'] == 'XST':
         s = XST()
-        s.setIntegration(metaDict['integration'])
         s.setSubband(metaDict['subband'])
     
+    s.setIntegration(metaDict['integration'])
     s.setStation(metaDict['station'])
     s.setRCUmode(metaDict['rcumode'])
+    print(metaDict['timestamp'])
     s.setTimestamp(datetime.datetime.strptime(metaDict['timestamp'], '%Y-%m-%d %H:%M:%S'))
     s.setHBAelements(metaDict['hbaelements'])
     s.setSpecial(metaDict['special'])
@@ -526,6 +558,11 @@ def readHDF5(filename, getdata=False):
 
     returns: statData instance, numpy array (optional)
     """
+    
+    if not H5SUPPORT:
+        print('ERROR: HDF5 is not supported, you need to install h5py')
+        return 0
+
     h5 = h5py.File(filename, 'r')
     
     if h5.attrs['CLASS']=='ACC':
@@ -549,7 +586,8 @@ def readHDF5(filename, getdata=False):
                 bitmode = h5['data'].attrs['bitmode'])
 
         # Find all the beamlets
-        for bkey in h5['data'].attrs.iterkeys():
+        #for bkey in h5['data'].attrs.iterkeys(): # py2 only
+        for bkey in h5['data'].attrs.keys():
             if bkey.endswith('_coord'): # a beamlet
                 bid = int(bkey[7:10])
                 s.setBeamlet(bid, theta = h5['data'].attrs['beamlet%03i_theta'%bid],
@@ -568,7 +606,7 @@ def readHDF5(filename, getdata=False):
                 rcu = h5['data'].attrs['rcu'])
 
     elif h5.attrs['CLASS']=='XST':
-        print h5['data'].attrs['subband'], type(h5['data'].attrs['subband'])
+        print(h5['data'].attrs['subband'], type(h5['data'].attrs['subband']))
         s = XST(station = h5['data'].attrs['station'],
                 rcumode = h5['data'].attrs['rcumode'],
                 ts = h5['data'].attrs['timestamp'],
@@ -578,7 +616,7 @@ def readHDF5(filename, getdata=False):
                 integration = h5['data'].attrs['integration'],
                 sb = h5['data'].attrs['subband'])
     else:
-        print 'ERROR: unknown class type'
+        print('ERROR: unknown class type')
         return 0
     
     if getdata: dd = np.array(h5['data'])
@@ -596,7 +634,7 @@ def read(filename, getdata=False):
     if filename.endswith('.json'): return readJSON(filename)
     elif filename.endswith('.h5'): return readHDF5(filename, getdata=False)
     else:
-        print 'ERROR: file extension not understood, only .json and .h5 file types work with this function.'
+        print('ERROR: file extension not understood, only .json and .h5 file types work with this function.')
 
 def acc2npy(filename, nant=96, npol=2):
     """Read an ACC file and return a numpy array
@@ -632,7 +670,7 @@ def bst2npy(filename, bitmode=8):
     elif bitmode==8: nbeamlets = 488
     elif bitmode==4: nbeamlets = 976
     else:
-        print 'WARNING: bit-mode %i not standard, only (16, 8, 4) in use, defaulting to 8 bit.'
+        print('WARNING: bit-mode %i not standard, only (16, 8, 4) in use, defaulting to 8 bit.')
         nbeamlets = 488
     d = np.fromfile(filename, dtype='float')
     nints = d.shape[0] / nbeamlets
@@ -699,7 +737,7 @@ if __name__ == '__main__':
 
     TESTDATADIR = '../test_data'
     
-    print 'h5 support:', H5SUPPORT
+    print('h5 support:', H5SUPPORT)
     
     printHBAtile('fcff')
 
@@ -714,15 +752,16 @@ if __name__ == '__main__':
     acc0.printMeta()
 
     accData = acc2npy(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.dat'))
-    print 'ACC DATA SHAPE:', accData.shape
+    print('ACC DATA SHAPE:', accData.shape)
 
-    acc.writeHDF5(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.h5'))
+    if H5SUPPORT:
+        acc.writeHDF5(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.h5'))
 
-    acc1, acc1Data = readHDF5(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.h5'), getdata=True)
-    acc1.printMeta()
-    print acc1Data.shape
+        acc1, acc1Data = readHDF5(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.h5'), getdata=True)
+        acc1.printMeta()
+        print(acc1Data.shape)
     
-    npy2acc(acc1Data, 'temp_acc.dat')
+    npy2acc(accData, 'temp_acc.dat')
 
     # 20170217_111340_bst_00X.dat
     bst = BST(station='KAIRA', rcumode=3, ts='20170217_111340', pol='X')
@@ -736,14 +775,16 @@ if __name__ == '__main__':
     bst0.printMeta()
 
     bstData = bst2npy(os.path.join(TESTDATADIR, '20170217_111340_bst_00X.dat'))
-    print 'BST DATA SHAPE:', bstData.shape
+    print('BST DATA SHAPE:', bstData.shape)
 
     bst.setRawFile(os.path.join(TESTDATADIR, '20170217_111340_bst_00X.dat'))
-    bst.writeHDF5(os.path.join(TESTDATADIR, '20170217_111340_bst_00X.h5'))
 
-    xst1, xst1Data = readHDF5(os.path.join(TESTDATADIR, '20170217_111340_bst_00X.h5'), getdata=True)
-    xst1.printMeta()
-    print xst1Data.shape
+    if H5SUPPORT:
+        bst.writeHDF5(os.path.join(TESTDATADIR, '20170217_111340_bst_00X.h5'))
+
+        xst1, xst1Data = readHDF5(os.path.join(TESTDATADIR, '20170217_111340_bst_00X.h5'), getdata=True)
+        xst1.printMeta()
+        print(xst1Data.shape)
 
     # 20140430_153356_sst_rcu024.dat
     sst = SST(station='KAIRA', rcumode=3, ts='20140430_153356', rcu=24) 
@@ -754,14 +795,16 @@ if __name__ == '__main__':
     sst0.printMeta()
 
     sstData = sst2npy(os.path.join(TESTDATADIR, '20140430_153356_sst_rcu024.dat'))
-    print 'SST DATA SHAPE:', sstData.shape
+    print('SST DATA SHAPE:', sstData.shape)
 
     sst.setRawFile(os.path.join(TESTDATADIR, '20140430_153356_sst_rcu024.dat'))
-    sst.writeHDF5(os.path.join(TESTDATADIR, '20140430_153356_sst_rcu024.h5'))
 
-    sst1, sst1Data = readHDF5(os.path.join(TESTDATADIR, '20140430_153356_sst_rcu024.h5'), getdata=True)
-    sst1.printMeta()
-    print sst1Data.shape
+    if H5SUPPORT:
+        sst.writeHDF5(os.path.join(TESTDATADIR, '20140430_153356_sst_rcu024.h5'))
+
+        sst1, sst1Data = readHDF5(os.path.join(TESTDATADIR, '20140430_153356_sst_rcu024.h5'), getdata=True)
+        sst1.printMeta()
+        print(sst1Data.shape)
 
     # 20170728_184348_sb180_xst.dat
     xst = XST(station='IE613', rcumode=3, ts='20170728_184348', sb=180)
@@ -772,12 +815,14 @@ if __name__ == '__main__':
     xst0.printMeta()
 
     xstData = xst2npy(os.path.join(TESTDATADIR, '20170728_184348_sb180_xst.dat'))
-    print 'XST DATA SHAPE:', xstData.shape
+    print('XST DATA SHAPE:', xstData.shape)
 
     xst.setRawFile(os.path.join(TESTDATADIR, '20170728_184348_sb180_xst.dat'))
-    xst.writeHDF5(os.path.join(TESTDATADIR, '20170728_184348_sb180_xst.h5'))
 
-    xst1, xst1Data = readHDF5(os.path.join(TESTDATADIR, '20170728_184348_sb180_xst.h5'), getdata=True)
-    xst1.printMeta()
-    print xst1Data.shape
+    if H5SUPPORT:
+        xst.writeHDF5(os.path.join(TESTDATADIR, '20170728_184348_sb180_xst.h5'))
+
+        xst1, xst1Data = readHDF5(os.path.join(TESTDATADIR, '20170728_184348_sb180_xst.h5'), getdata=True)
+        xst1.printMeta()
+        print(xst1Data.shape)
 
