@@ -15,10 +15,6 @@ except ImportError:
     H5SUPPORT = False
 
 # TODO: script
-#   input: opts output: json,hdf5
-#   input: opts,raw output: hdf5
-#   input: json,raw output: hdf5
-#   input: hdf5 output: json,raw
 # TODO: writeRaw()
 # TODO: function: standard modes function, e.g. all beamlets in one pointing with different subbands
 # TODO: unittests
@@ -41,7 +37,7 @@ class statData(object):
 
     Attributes:
     """
-    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, rawfile=None):
+    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, rawfile=None, integration=1):
         
         self.setStation(station)
         self.setRCUmode(rcumode)
@@ -49,6 +45,7 @@ class statData(object):
         self.setHBAelements(hbaStr)
         self.setSpecial(special)
         self.setRawFile(rawfile)
+        self.setIntegration(integration)
 
     def setStation(self, station=None):
         self.station = station # Station ID string
@@ -130,6 +127,14 @@ class statData(object):
         elif rawfile is None: self.rawfile = rawfile
         elif np.isnan(rawfile): self.rawfile = None # HDF5 version
 
+    def setIntegration(self, integration=None):
+        if integration is None:
+            self.integration = None
+        elif np.isnan(integration):
+            self.integration = None # HDF5 version
+        else: # integration in seconds
+            self.integration = int(integration)
+
     def setArrayProp(self, nants, npol):
         # TODO: this information could be extracted based on the station ID
         self.nants = nants
@@ -185,14 +190,6 @@ class ACC(statData):
         self.setRawFile(rawfile)
         self.setIntegration(integration)
         self.setArrayProp(nants, npol)
-
-    def setIntegration(self, integration=None):
-        if integration is None:
-            self.integration = None
-        elif np.isnan(integration):
-            self.integration = None # HDF5 version
-        else: # integration in seconds
-            self.integration = int(integration)
 
     def printMeta(self):
         super(ACC, self).printMeta()
@@ -254,14 +251,6 @@ class BST(statData):
         self.setPol(pol)
         self.beamlets = {}
 
-    def setIntegration(self, integration=None):
-        if integration is None:
-            self.integration = None
-        elif np.isnan(integration):
-            self.integration = None # HDF5 version
-        else: # integration in seconds
-            self.integration = int(integration)
-
     def setBitmode(self, bitmode=None):
         if bitmode is None:
             self.bitmode = None
@@ -282,7 +271,9 @@ class BST(statData):
         if type(theta)==np.float64: theta = float(theta)
         if type(phi)==np.float64: phi = float(phi)
         if type(sb)==np.int64: sb = int(sb)
+
         if rcus is None: pass
+        elif type(rcus) is str: rcus = rcus
         elif np.isnan(rcus): rcus = None
 
         if type(coord) is str:
@@ -359,7 +350,7 @@ class SST(statData):
 
     Attributes:
     """
-    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, rawfile=None, rcu=None):
+    def __init__(self, station=None, rcumode=None, ts=None, hbaStr=None, special=None, rawfile=None, integration=1, rcu=None):
 
         self.setStation(station)
         self.setRCUmode(rcumode)
@@ -367,6 +358,7 @@ class SST(statData):
         self.setHBAelements(hbaStr)
         self.setSpecial(special)
         self.setRawFile(rawfile)
+        self.setIntegration(integration)
         self.setRCU(rcu)
 
     def setRCU(self, rcu=None):
@@ -433,14 +425,6 @@ class XST(statData):
         self.setIntegration(integration)
         self.setSubband(sb)
         self.setArrayProp(nants, npol)
-
-    def setIntegration(self, integration=None):
-        if integration is None:
-            self.integration = None
-        elif np.isnan(integration):
-            self.integration = None # HDF5 version
-        else: # integration in seconds
-            self.integration = int(integration)
 
     def setSubband(self, sb=None):
         if sb is None:
@@ -600,18 +584,20 @@ def readHDF5(filename, getdata=False):
         print 'ERROR: unknown class type'
         return 0
     
-    if getdata: dd = h5['data']
+    if getdata: dd = np.array(h5['data'])
 
     h5.close
 
     if getdata: return s, dd
     else: return s
 
-def read(filename):
+def read(filename, getdata=False):
     """Wrapper function for readJSON() and readHDF5(), selects based on file extension (.json or .h5)
+
+    getdata: boolean, if true return the raw data as a numpy array also for HDF5
     """
     if filename.endswith('.json'): return readJSON(filename)
-    elif filename.endswith('.h5'): return readHDF5(filename)
+    elif filename.endswith('.h5'): return readHDF5(filename, getdata=False)
     else:
         print 'ERROR: file extension not understood, only .json and .h5 file types work with this function.'
 
@@ -628,6 +614,15 @@ def acc2npy(filename, nant=96, npol=2):
     nints = 1 # ACC only have a single integration
     corrMatrix = np.fromfile(filename, dtype='complex') # read in the correlation matrix
     return np.reshape(corrMatrix, (nints, nsb, nantpol, nantpol))
+
+def npy2acc(dd, filename):
+    """Write a correlation matrix numpy array to a binary raw file
+    dd: complex numpy array, correlation matrix of shape (1, 512, nantpol, nantpol)
+    filename: str, path to binary data file
+    """
+    fh = open(filename, 'wb')
+    dd.astype('complex').tofile(fh)
+    fh.close()
 
 def bst2npy(filename, bitmode=8):
     """Read an BST file and return a numpy array
@@ -646,6 +641,15 @@ def bst2npy(filename, bitmode=8):
     nints = d.shape[0] / nbeamlets
     return np.reshape(d, (nints, nbeamlets))
 
+def npy2bst(dd, filename):
+    """Write a BST numpy array to a binary raw file
+    dd: float numpy array of shape (nints, nbeamlets)
+    filename: str, path to binary data file
+    """
+    fh = open(filename, 'wb')
+    dd.astype('float').tofile(fh)
+    fh.close()
+
 def sst2npy(filename):
     """Read an SST file and return a numpy array
     filename: str, path to binary data file
@@ -656,6 +660,15 @@ def sst2npy(filename):
     d = np.fromfile(filename, dtype='float')
     nints = d.shape[0] / 512
     return np.reshape(d, (nints, nsb))
+
+def npy2sst(dd, filename):
+    """Write a SST numpy array to a binary raw file
+    dd: float numpy array of shape (nints, 512)
+    filename: str, path to binary data file
+    """
+    fh = open(filename, 'wb')
+    dd.astype('float').tofile(fh)
+    fh.close()
 
 def xst2npy(filename, nant=96, npol=2):
     """Read an XST file and return a numpy array
@@ -670,6 +683,16 @@ def xst2npy(filename, nant=96, npol=2):
     corrMatrix = np.fromfile(filename, dtype='complex') # read in the correlation matrix
     nints = corrMatrix.shape[0]/(nantpol * nantpol) # number of integrations
     return np.reshape(corrMatrix, (nints, nsb, nantpol, nantpol))
+
+def npy2xst(dd, filename):
+    """Write a correlation matrix numpy array to a binary raw file
+    dd: complex numpy array, correlation matrix of shape (nints, 1, nantpol, nantpol)
+    filename: str, path to binary data file
+    """
+    fh = open(filename, 'wb')
+    dd.astype('complex').tofile(fh)
+    fh.close()
+
 
 if __name__ == '__main__':
 
@@ -699,6 +722,8 @@ if __name__ == '__main__':
     acc1, acc1Data = readHDF5(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.h5'), getdata=True)
     acc1.printMeta()
     print acc1Data.shape
+    
+    npy2acc(acc1Data, 'temp_acc.dat')
 
     # 20170217_111340_bst_00X.dat
     bst = BST(station='KAIRA', rcumode=3, ts='20170217_111340', pol='X')
