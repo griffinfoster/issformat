@@ -14,13 +14,10 @@ try:
 except ImportError:
     H5SUPPORT = False
 
-# TODO: script
-# TODO: writeRaw()
-# TODO: function: standard modes function, e.g. all beamlets in one pointing with different subbands
+# TODO: definition document and code comment
 # TODO: unittests
 # TODO: python2 and 3 compatible
 # TODO: setup.py, layout, pip
-# TODO: definition document and code comment
 
 """
 From ASTRON Single Station wiki:
@@ -695,6 +692,8 @@ def npy2xst(dd, filename):
 
 
 if __name__ == '__main__':
+
+    # TEST BENCHES
 
     import os
 
