@@ -23,71 +23,161 @@ This is a technical description of the metadata format defined for use with
 LOFAR international single station data products including: total correlation
 matrices (ACC), beamlet statistics (BST), subband statistics (SST), and single
 subband correlation matrices (XST). A python module (\texttt{issformat}) has
-been written which implements this definition.
+been written which implements this definition. Metadata is stored as JSON files.
+HDF5 is used to provide a metadata wrapper for raw data files.
 \end{abstract}
 
 \section{Introduction}
 \label{sec:intro}
 
+The statistics files produced by a LOFAR station contain no observational
+metadata to describe the array configuration. Only time is encoded in the
+standard file name. In order to provide the essential metadata we have defined a
+set of keys which can be written to a JSON file as an auxillary file to the raw
+data. It is useful to keep a common naming convention for this file by replacing
+the .dat extension with a .json extension. In addition, an HDF5 format is
+defined to wrapper the raw data and provide the metadata as attributes. In this
+document the metadata is defined, along with the JSON format, HDF5 format, and a
+python module which can be used to interface with these file types.
+
+\section{Statistics File Types}
+
+\noindent\textbf{Total Correlation (ACC):} This is a correlation matrix of all
+antenna pairs in the configured array, for all subbands. For each integration a
+single subband is correlated, cycling through all 512 subbands. Each file
+contains a single integration per subband. The binary file is made up of 32-bit
+floats (real and imaginary, to make a 64-bit complex number). The data is of the
+form (512 subbands $\times$ nantpol $\times$ nantpol), where nantpol is 192 (96
+antenna elements, 2 polarizations) for an international station. Note, KAIRA has
+only 48 antenna elements. The standard naming convention is
+\texttt{YYYYMMDD\_HHMMSS\_acc\_512xNANTPOLxNANTPOL.dat}, e.g.
+\texttt{20120611\_124534\_acc\_512x192x192.dat}. See \texttt{acc2npy()} for how
+to read in an ACC file to a numpy array.
+\\
+
+\noindent\textbf{Beamlet Statistics (BST):} The detected and integrated power
+from each station beamlet. This is the most complex of the statistics files.
+Depended in the bitmode (4, 8, or 16) there are (976, 488, or 244) beamlets
+respectively. Each beamlets is made up of a set of RCUs beamformed in a specific
+direction for a giver coordinate system for a single subband. Each file contains
+the total number of beamlets for multiple integrations. The binary file is made
+up of 32-bit floats. The data is of the form (nintegrations $\times$ nbeamlets).
+The standard naming convention is \texttt{YYYYMMDD\_HHMMSS\_bst\_00POL.dat}, e.g.
+\texttt{20170217\_111340\_bst\_00X.dat}.  See \texttt{bst2npy()} for how to read in
+an BST file to a numpy array.
+\\
+
+\noindent\textbf{Subband Statistics (SST):} The subband statistics of a single
+RCU, i.e. the integrated power spectrum for an antenna element. Multiple
+integrations from the same RCU can be stored in a single file. The binary file
+is made up of 32-bit floats. The data is of the form (nintegrations $\times$ 512
+subbands). The standard naming convention is
+\texttt{YYYYMMDD\_HHMMSS\_sst\_rcuRCUID.dat}, e.g.
+\texttt{20140430\_153356\_sst\_rcu024.dat}.  See \texttt{sst2npy()} for how to
+read in an SST file to a numpy array.
+\\
+
+\noindent\textbf{Subband Correlation (XST):} Similar to an ACC file in content,
+contains the correlation matrix for a single subband. Multiple integrations of
+the subband can be included in the file. The binary file is made up of 32-bit
+floats (real and imaginary, to make a 64-bit complex number). The data is of the
+form (nintegrations $\times$ 1 subband $\times$ nantpol $\times$ nantpol), where
+nantpol is 192 (96 antenna elements, 2 polarizations) for an international
+station. Note, KAIRA has only 48 antenna elements.  The standard naming
+convention is \texttt{YYYYMMDD\_HHMMSS\_sbSBID\_xst.dat}, e.g.
+\texttt{20170728\_184348\_sb180\_xst.dat}.  See \texttt{xst2npy()} for how to
+read in an XST file to a numpy array.
+\\
+
 \section{Metadata Key Definitions}
 
-\subsection{Generic Keys}
+A minimum set of keys have been defined that are necessary to describe most (if
+not all) possible observing modes using a LOFAR station. A common set of keys
+are used for all statistics data types (Section \ref{sec:common_keys}). There
+are also keys specific to file types BST (Section \ref{sec:bst_keys}), SST
+(Section \ref{sec:sst_keys}), and XST (Section \ref{sec:xst_keys}).
+
+\subsection{Common Keys}
+\label{sec:common_keys}
 
 \begin{itemize}
-    \item \textbf{Station:} station string, 5 characters, e.g. SE607, UK608,
-    IE613, ...
-    \item \textbf{RCUmode:} mode of each RCU, valid values: 1-7. If only one
-    entry is used then it is assumed all RCUs are the same mode. Otherwise, an
-    entry for each RCU is required.
-    \item \textbf{Timestamp:} date and time of the file.
-    \item \textbf{HBAElements:} optional, when using the HBA in a non-standard
-    mode by disabling elements in the tile, e.g. HBA `All-sky' mode, then this
-    key is used to store the setup of each tile. A tile state is encoded in a
-    4-digit hexidecimal string. Each hexidecimal character represents a row of
-    the tile.
-    \item \textbf{Special:} Extra entry to include comments for the observation.
+    \item \textbf{Station:} \texttt{string}, station ID, 5 characters, e.g.
+    SE607, UK608, IE613, ...
+    \item \textbf{RCUmode:} \texttt{int} or list of \texttt{int}, mode of each
+    RCU, valid values: 1-7. If only one entry is used then it is assumed all
+    RCUs are the same mode. Otherwise, an entry for each RCU is required.
+    \item \textbf{Timestamp:} \texttt{string}, date and time of the file.
+    \item \textbf{HBAElements:} \texttt{string}, when using the HBA in a
+    non-standard mode by disabling elements in the tile, e.g. HBA `All-sky'
+    mode, then this key is used to store the setup of each tile. A tile state is
+    encoded in a 4-digit hexidecimal string. Each hexidecimal character
+    represents a row of the tile. (optional)
+    \item \textbf{Special:} \texttt{string}, Extra entry to include comments for
+    the observation. (optional)
+    \item \textbf{Rawfile:} \texttt{string}, Filename of the raw data file.
+    (optional))
+    \item \textbf{Integration:} \texttt{int}, integration length in seconds,
+    default: 1.
 \end{itemize}
 
 \subsection{Total Correlation (ACC) Keys}
 
-\begin{itemize}
-    \item \textbf{Integration:} correlation integration length in seconds,
-    default: 1.
-\end{itemize}
-
 \subsection{Beamlet Statistics (BST) Keys}
+\label{sec:bst_keys}
 
 \begin{itemize}
-    \item \textbf{Integration:} correlation integration length in seconds.
-    \item \textbf{Bitmode:} beamlet bit mode, 16, 8, or 4 bit resulting in 244,
-    488, 976 possible beamlets respectively.
-    \item \textbf{Pol:} polarization of beamlet, X or Y.
+    \item \textbf{Bitmode:} \texttt{int}, beamlet bit mode, 16, 8, or 4 bit
+    resulting in 244, 488, 976 possible beamlets respectively.
+    \item \textbf{Pol:} \texttt{string}, polarization of beamlet, X or Y.
     \item \textbf{beamlets:}
     \begin{itemize}
-        \item \textbf{ID:} beamlet ID number
-        \item \textbf{Pointing:} pointing in given coordinate system (theta,
-        phi, coord).
-        \item \textbf{Subband:} subband ID.
-        \item \textbf{RCUs:} RCUs in the beamlet.
+        \item \textbf{ID:} \texttt{int}, beamlet ID number
+        \item \textbf{Pointing:} (\texttt{float}, \texttt{float},
+        \texttt{string}), pointing in given coordinate system (theta, phi,
+        coord). Coordinates are in radians. Valid coordinate systems: J2000,
+        HADEC, AZELGEO, ITRF, B1950, GALACTIC, ECLIPTIC, JUPITER, MARS, MERCURY,
+        MOON, NEPTUNE, 'PLUTO, SATURN, SUN, URANUS, VENUS
+        \item \textbf{Subband:} \texttt{int}, subband ID.
+        \item \textbf{RCUs:} list of \texttt{int}, RCUs in the beamlet.
     \end{itemize}
 
 \end{itemize}
 
 \subsection{Subband Statistics (SST) Keys}
+\label{sec:sst_keys}
 
 \begin{itemize}
-    \item \textbf{RCU:} RCU ID.
+    \item \textbf{RCU:} \texttt{int}, RCU ID.
 \end{itemize}
 
 \subsection{Subband Correlation (XST) Keys}
+\label{sec:xst_keys}
 
 \begin{itemize}
-    \item \textbf{Integration:} correlation integration length in seconds.
-    \item \textbf{Subband:} subband ID.
+    \item \textbf{Subband:} \texttt{int}, subband ID.
 \end{itemize}
 
-\section{Examples}
+% TODO: python class definition + example
+% TODO: JSON definition + example
+% TODO: HDF5 definition + example
+% TODO: issformat install
+% TODO: issformat functions
+% TODO: issformat examples
+
+\section{JSON Definition}
+
+\subsection{Examples}
+
+\section{HDF5 Definition}
+
+\subsection{Examples}
 
 \section{\texttt{issformat} use}
+
+\subsection{Install}
+
+\subsection{Functions}
+
+\subsection{Examples}
 
 \end{document}             % End of document.
