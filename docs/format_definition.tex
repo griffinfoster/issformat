@@ -157,27 +157,204 @@ are also keys specific to file types BST (Section \ref{sec:bst_keys}), SST
     \item \textbf{Subband:} \texttt{int}, subband ID.
 \end{itemize}
 
-% TODO: python class definition + example
-% TODO: JSON definition + example
-% TODO: HDF5 definition + example
-% TODO: issformat install
-% TODO: issformat functions
-% TODO: issformat examples
-
 \section{JSON Definition}
 
-\subsection{Examples}
+Metadata is stored as a text JSON file following a simple <key> : <value> entry.
+
+\subsection{ACC}
+
+The ACC JSON metadata file format is:
+
+\begin{verbatim}
+{
+    "datatype": <string>,
+    "hbaelements": <string> OR null,
+    "integration": <int>,
+    "rawfile": <string>,
+    "rcumode": <int> or [<int>],
+    "special": <string> OR null,
+    "station": <string>,
+    "timestamp": <string>
+}
+\end{verbatim}
+
+\noindent An example of this format is:
+
+\begin{verbatim}
+{
+    "datatype": "ACC",
+    "hbaelements": null,
+    "integration": 1,
+    "rawfile": "../test_data/20120611_124534_acc_512x192x192.dat",
+    "rcumode": 3,
+    "special": null,
+    "station": "UK608",
+    "timestamp": "2012-06-11 12:45:34"
+}
+\end{verbatim}
+
+\subsection{BST}
+
+The BST JSON metadata file format is:
+
+\begin{verbatim}
+{
+    "beamlets": {
+        <string>: {
+            "coord": <string>,
+            "phi": <float>,
+            "rcus": [<int>] OR null,
+            "sb": <int>,
+            "theta": <float>
+        },
+		...
+    },
+    "bitmode": <int>,
+    "datatype": <string>,
+    "hbaelements": <string> OR null,
+    "integration": <int>,
+    "pol": <string>,
+    "rawfile": <string>,
+    "rcumode": <int> or [<int>],
+    "special": <string> OR null,
+    "station": <string>,
+    "timestamp": <string>
+}
+\end{verbatim}
+
+\noindent An example of this format is:
+
+\begin{verbatim}
+{
+    "beamlets": {
+        "0": {
+            "coord": "AZELGEO",
+            "phi": 0.0,
+            "rcus": null,
+            "sb": 180,
+            "theta": 0.0
+        },
+        "1": {
+            "coord": "AZELGEO",
+            "phi": 0.0,
+            "rcus": null,
+            "sb": 180,
+            "theta": 0.0
+        },
+        "2": {
+            "coord": "AZELGEO",
+            "phi": 0.0,
+            "rcus": null,
+            "sb": 180,
+            "theta": 0.0
+        }
+		...
+    },
+    "bitmode": 8,
+    "datatype": "BST",
+    "hbaelements": null,
+    "integration": 1,
+    "pol": "X",
+    "rawfile": null,
+    "rcumode": 3,
+    "special": null,
+    "station": "KAIRA",
+    "timestamp": "2017-02-17 11:13:40"
+}
+\end{verbatim}
+
+\subsection{SST}
+
+The SST JSON metadata file format is:
+
+\begin{verbatim}
+{
+    "datatype": <string>,
+    "hbaelements": <string> OR null,
+    "integration": <int>,
+    "rawfile": <string>,
+    "rcu": <int>,
+    "rcumode": <int> or [<int>],
+    "special": <string> OR null,
+    "station": <string>,
+    "subband": <int>,
+    "timestamp": <string>
+}
+\end{verbatim}
+
+\noindent An example of this format is:
+
+\begin{verbatim}
+{
+    "datatype": "SST",
+    "hbaelements": null,
+    "integration": 1,
+    "rawfile": null,
+    "rcu": 24,
+    "rcumode": 3,
+    "special": null,
+    "station": "KAIRA",
+    "timestamp": "2014-04-30 15:33:56"
+}
+\end{verbatim}
+
+\subsection{XST}
+
+The XST JSON metadata file format is:
+
+\begin{verbatim}
+{
+    "datatype": <string>,
+    "hbaelements": <string> OR null,
+    "integration": <int>,
+    "rawfile": <string>,
+    "rcumode": <int> or [<int>],
+    "special": <string> OR null,
+    "station": <string>,
+    "subband": <int>,
+    "timestamp": <string>
+}
+\end{verbatim}
+
+\noindent An example of this format is:
+
+\begin{verbatim}
+{
+    "datatype": "XST",
+    "hbaelements": null,
+    "integration": null,
+    "rawfile": null,
+    "rcumode": 3,
+    "special": null,
+    "station": "IE613",
+    "subband": 180,
+    "timestamp": "2017-07-28 18:43:48"
+}
+\end{verbatim}
 
 \section{HDF5 Definition}
 
 \subsection{Examples}
 
-\section{\texttt{issformat} use}
+\section{\texttt{issformat}}
+
+The \texttt{issformat} module provides a python interface to meatdata files. A
+class is defined for each file type, and functions are provided to read and
+write from the define JSON and HDF5 files. 
 
 \subsection{Install}
+
+\subsection{Classes}
 
 \subsection{Functions}
 
 \subsection{Examples}
 
 \end{document}             % End of document.
+
+% TODO: HDF5 definition + example
+% TODO: issformat install
+% TODO: issformat class definition
+% TODO: issformat functions
+% TODO: issformat examples
+
