@@ -14,7 +14,7 @@ Input options override JSON/HDF5 input metadata, to override an option to be typ
 from __future__ import print_function
 
 import sys,os
-import fmt
+import issformat
 
 if __name__ == '__main__':
     from optparse import OptionParser
@@ -71,21 +71,21 @@ if __name__ == '__main__':
     for fn in args:
         if fn.endswith('.h5'): # HDF5
             if 'raw' in omodes: # extract data
-                s, dd = fmt.read(fn, getdata=True)
+                s, dd = issformat.read(fn, getdata=True)
             else:
-                s = fmt.read(fn)
+                s = issformat.read(fn)
         elif fn.endswith('.json'): # JSON
-            s = fmt.read(fn)
+            s = issformat.read(fn)
         elif fn.endswith('.dat'): # raw statistics file
             if opts.sclass is None:
                 print('WARNING: --sclass option not set, class unknown, skipping file read')
             else:
-                if opts.sclass.upper().startswith('ACC'): dd = fmt.acc2npy(fn, opts.nant, opts.npol) 
+                if opts.sclass.upper().startswith('ACC'): dd = issformat.acc2npy(fn, opts.nant, opts.npol) 
                 elif opts.sclass.upper().startswith('BST'):
                     if opts.bitmode is None: print('WARNING: --bitmode option not set')
-                    dd = fmt.bst2npy(fn, opts.bitmode)
-                elif opts.sclass.upper().startswith('SST'): dd = fmt.sst2npy(fn) 
-                elif opts.sclass.upper().startswith('XST'): dd = fmt.xst2npy(fn, opts.nant, opts.npol) 
+                    dd = issformat.bst2npy(fn, opts.bitmode)
+                elif opts.sclass.upper().startswith('SST'): dd = issformat.sst2npy(fn) 
+                elif opts.sclass.upper().startswith('XST'): dd = issformat.xst2npy(fn, opts.nant, opts.npol) 
 
     # generate a metadata instance or override metadata
     if (opts.sclass is None) and (s is None):
@@ -151,7 +151,7 @@ if __name__ == '__main__':
 
     else: # generate a new meta data instance
         if opts.sclass.upper().startswith('ACC'):
-            s = fmt.ACC(station = opts.station,
+            s = issformat.ACC(station = opts.station,
                         rcumode = opts.rcumode,
                         ts = opts.ts,
                         hbaStr = opts.hbaStr,
@@ -162,7 +162,7 @@ if __name__ == '__main__':
                         npol = opts.npol)
 
         elif opts.sclass.upper().startswith('BST'):
-            s = fmt.BST(station = opts.station,
+            s = issformat.BST(station = opts.station,
                         rcumode = opts.rcumode,
                         ts = opts.ts,
                         hbaStr = opts.hbaStr,
@@ -173,7 +173,7 @@ if __name__ == '__main__':
                         bitmode = opts.bitmode)
 
         elif opts.sclass.upper().startswith('SST'):
-            s = fmt.SST(station = opts.station,
+            s = issformat.SST(station = opts.station,
                         rcumode = opts.rcumode,
                         ts = opts.ts,
                         hbaStr = opts.hbaStr,
@@ -183,7 +183,7 @@ if __name__ == '__main__':
                         rcu = opts.rcu)
 
         elif opts.sclass.upper().startswith('XST'):
-            s = fmt.XST(station = opts.station,
+            s = issformat.XST(station = opts.station,
                         rcumode = opts.rcumode,
                         ts = opts.ts,
                         hbaStr = opts.hbaStr,
@@ -211,10 +211,10 @@ if __name__ == '__main__':
     if 'raw' in omodes:
         oraw = oprefix + '.dat'
         print('Writing data to RAW', oraw)
-        if type(s).__name__=='ACC': fmt.npy2acc(oraw)
-        elif type(s).__name__=='BST': fmt.npy2bst(oraw)
-        elif type(s).__name__=='SST': fmt.npy2sst(oraw)
-        elif type(s).__name__=='XST': fmt.npy2xst(oraw)
+        if type(s).__name__=='ACC': issformat.npy2acc(oraw)
+        elif type(s).__name__=='BST': issformat.npy2bst(oraw)
+        elif type(s).__name__=='SST': issformat.npy2sst(oraw)
+        elif type(s).__name__=='XST': issformat.npy2xst(oraw)
     if 'json' in omodes:
         ojson = oprefix + '.json'
         print('Writing data to JSON', ojson)
