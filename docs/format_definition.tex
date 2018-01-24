@@ -27,6 +27,8 @@ been written which implements this definition. Metadata is stored as JSON files.
 HDF5 is used to provide a metadata wrapper for raw data files.
 \end{abstract}
 
+\tableofcontents
+
 \section{Introduction}
 \label{sec:intro}
 
@@ -342,9 +344,109 @@ The XST JSON metadata file format is:
 
 \section{HDF5 Definition}
 
-% TODO: HDF5 definition + example
+An HDF5 definition exists to wrap around the raw binary statistics files. A top
+level attribute defines the data type. There is one dataset \texttt{data} which
+contains an array of with \texttt{DIMENSION\_LABELS} dimensions. The metadata is
+contained in the attributes of the data set.
 
-\subsection{Examples}
+\noindent ACC follows the following layout:
+
+\begin{verbatim}
+{
+    { Attributes:
+        "CLASS": "ACC",
+    }
+    { data:
+        { Attributes:
+            "DIMENSION_LABELS": ('time', 'subband', 'antpol1', 'antpol2'),
+            "hbaelements": <string> OR null,
+            "integration": <int>,
+            "rawfile": <string>,
+            "rcumode": <int> or [<int>],
+            "special": <string> OR null,
+            "station": <string>,
+            "timestamp": <string>
+        {
+    }
+}
+\end{verbatim}
+
+\noindent BST follows the following layout:
+
+\begin{verbatim}
+{
+    { Attributes:
+        "CLASS": "BST",
+    }
+    { data:
+        { Attributes:
+            "DIMENSION_LABELS": ('time', 'beamlet'),
+            ...
+            "beamlet<ID>_theta": <float>,
+            "beamlet<ID>_phi": <float>,
+            "beamlet<ID>_coord": <string>,
+            "beamlet<ID>_sb": <int>,
+            "beamlet<ID>_rcus": [<int>] OR "all" OR null,
+            ...
+            "bitmode": <int>,
+            "hbaelements": <string> OR null,
+            "integration": <int>,
+            "pol": <string>,
+            "rawfile": <string>,
+            "rcumode": <int> or [<int>],
+            "special": <string> OR null,
+            "station": <string>,
+            "timestamp": <string>
+        {
+    }
+}
+\end{verbatim}
+
+\noindent SST follows the following layout:
+
+\begin{verbatim}
+{
+    { Attributes:
+        "CLASS": "SST",
+    }
+    { data:
+        { Attributes:
+            "DIMENSION_LABELS": ('time', 'subband'),
+            "hbaelements": <string> OR null,
+            "integration": <int>,
+            "rawfile": <string>,
+            "rcu": <int>,
+            "rcumode": <int> or [<int>],
+            "special": <string> OR null,
+            "station": <string>,
+            "timestamp": <string>
+        {
+    }
+}
+\end{verbatim}
+
+\noindent XST follows the following layout:
+
+\begin{verbatim}
+{
+    { Attributes:
+        "CLASS": "XST",
+    }
+    { data:
+        { Attributes:
+            "DIMENSION_LABELS": ('time', 'subband', 'antpol1', 'antpol2'),
+            "hbaelements": <string> OR null,
+            "integration": <int>,
+            "rawfile": <string>,
+            "rcumode": <int> or [<int>],
+            "special": <string> OR null,
+            "station": <string>,
+            "subband": <int>,
+            "timestamp": <string>
+        {
+    }
+}
+\end{verbatim}
 
 \section{\texttt{issformat}}
 

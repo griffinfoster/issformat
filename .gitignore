@@ -1,5 +1,6 @@
 *.swp
 *.aux
+*.toc
 test_data/*.h5
 test_data/*.json
 test_data/*.dat
