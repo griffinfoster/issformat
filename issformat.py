@@ -17,9 +17,7 @@ try:
 except ImportError:
     H5SUPPORT = False
 
-# TODO: definition document and code comment
 # TODO: unittests
-# TODO: setup.py, layout, pip, README
 
 """
 From ASTRON Single Station wiki:
@@ -156,6 +154,7 @@ class statData(object):
         print('HBA ELEMENTS:', self.hbaElements)
         print('SPECIAL:', self.special)
         print('RAWFILE:', self.rawfile)
+        print('NANTS: %i NPOL: %i'%(self.nants, self.npol))
 
     def _buildDict(self):
         self.metaDict = {
@@ -741,7 +740,7 @@ if __name__ == '__main__':
     printHBAtile('fcff')
 
     # 20120611_124534_acc_512x192x192.dat
-    acc = ACC(station='UK608', rcumode=3, ts='20120611_124534')
+    acc = ACC(station='UK608', rcumode=3, ts='20120611_124534', rawfile='20120611_124534_acc_512x192x192.dat')
     acc.setRawFile(os.path.join(TESTDATADIR, '20120611_124534_acc_512x192x192.dat'))
     acc.printMeta()
 
