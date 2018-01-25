@@ -28,9 +28,11 @@ if __name__ == '__main__':
     o.add_option('--print', dest='printMeta', action='store_true',
         help = 'Print metadata')
 
+    o.add_option('--standard', dest='standard', action='store_true',
+        help = 'Assume the standard filenaming format for the input rawfile, the timestamp and data class can be determined from this. Additional information RCU (SST), pol (BST), subband (XST) is also extracted. Note: this option overrides an input JSON or HDF5 fle.')
     o.add_option('--beamlet', dest='beamlet', default=None,
         help = '(BST) Beamlet file, list of entries: BID THETA PHI COORD SB RCUS, see documentation for details, default: None')
-    o.add_option('--bitmode', dest='bitmode', default=None,
+    o.add_option('--bitmode', dest='bitmode', choices=['4','8','16', 'None'], default=None,
         help = '(BST) Beamlet bitmode (4, 8, or 16), default: None')
     o.add_option('--bpol', dest='bpol', default=None,
         help = '(BST) Beamlet polarization, default: None')
@@ -83,11 +85,38 @@ if __name__ == '__main__':
                 if opts.sclass.upper().startswith('ACC'): dd = issformat.acc2npy(fn, opts.nant, opts.npol) 
                 elif opts.sclass.upper().startswith('BST'):
                     if opts.bitmode is None: print('WARNING: --bitmode option not set')
-                    dd = issformat.bst2npy(fn, opts.bitmode)
+                    dd = issformat.bst2npy(fn, int(opts.bitmode))
                 elif opts.sclass.upper().startswith('SST'): dd = issformat.sst2npy(fn) 
                 elif opts.sclass.upper().startswith('XST'): dd = issformat.xst2npy(fn, opts.nant, opts.npol) 
 
     # generate a metadata instance or override metadata
+    if (opts.standard):
+        if opts.rawfile is None:
+            print('WARNING: Using --standard flag but no --rawfile set')
+        else:
+            # examples:
+            # ACC: 20120611_124534_acc_512x192x192.dat
+            # BST: 20170217_111340_bst_00X.dat
+            # SST: 20140430_153356_sst_rcu024.dat
+            # XST: 20170728_184348_sb180_xst.dat
+            rawfile = os.path.basename(opts.rawfile)
+            ts = rawfile.split('_')[0] + '_' + rawfile.split('_')[1]
+
+            if '_acc_' in rawfile: # ACC
+                nants = int(rawfile.split('x')[1]) / 2
+                s = issformat.ACC(ts=ts, rawfile=rawfile, nants=nants, npol=2)
+            elif '_bst_' in rawfile: # BST
+                pol = rawfile.split('.')[0][-1]
+                s = issformat.BST(ts=ts, rawfile=rawfile, pol=pol)
+            elif '_sst_' in rawfile: # SST
+                rcu = int(rawfile.split('.')[0].split('rcu')[1])
+                s = issformat.SST(ts=ts, rawfile=rawfile, rcu=rcu)
+            elif '_xst' in rawfile: # XST
+                sb = int(rawfile.split('_')[2].split('sb')[1])
+                s = issformat.XST(ts=ts, rawfile=rawfile, sb=sb)
+            else:
+                print('WARNING: unknown file type %s when using --standard flag.'%rawfile)
+
     if (opts.sclass is None) and (s is None):
         print('ERROR: --sclass is nor defined and there is no input metadata file, can not go on.')
         exit()

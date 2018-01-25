@@ -116,8 +116,9 @@ are also keys specific to file types BST (Section \ref{sec:bst_keys}), SST
     represents a row of the tile. (optional)
     \item \textbf{Special:} \texttt{string}, Extra entry to include comments for
     the observation. (optional)
-    \item \textbf{Rawfile:} \texttt{string}, Filename of the raw data file.
-    (optional))
+    \item \textbf{Rawfile:} \texttt{string}, Filename of the raw data file. This
+    should not include any path information.
+    (optional but recommended)
     \item \textbf{Integration:} \texttt{int}, integration length in seconds,
     default: 1.
 \end{itemize}
@@ -140,7 +141,8 @@ are also keys specific to file types BST (Section \ref{sec:bst_keys}), SST
         HADEC, AZELGEO, ITRF, B1950, GALACTIC, ECLIPTIC, JUPITER, MARS, MERCURY,
         MOON, NEPTUNE, 'PLUTO, SATURN, SUN, URANUS, VENUS
         \item \textbf{Subband:} \texttt{int}, subband ID.
-        \item \textbf{RCUs:} list of \texttt{int}, RCUs in the beamlet.
+        \item \textbf{RCUs:} list of \texttt{int}, RCUs in the beamlet, OR `all'
+        when using all RCUs.
     \end{itemize}
 
 \end{itemize}
@@ -202,10 +204,10 @@ The BST JSON metadata file format is:
 \begin{verbatim}
 {
     "beamlets": {
-        <string>: {
+        <string (beamlet ID)>: {
             "coord": <string>,
             "phi": <float>,
-            "rcus": [<int>] OR "all" OR null,
+            "rcus": [<int>] OR "all",
             "sb": <int>,
             "theta": <float>
         },
@@ -224,7 +226,8 @@ The BST JSON metadata file format is:
 }
 \end{verbatim}
 
-\noindent An example of this format is:
+\noindent For each beamlet entry a string of the beamlet ID (an integer) is the
+unique identifier. An example of this format showing the first three beamlets is:
 
 \begin{verbatim}
 {
@@ -525,17 +528,15 @@ issConverter.py -h
 \subsubsection{Total Correlation (ACC)}
 
 \begin{verbatim}
-issConverter.py --rawfile=20120611_124534_acc_512x192x192.dat --rcumode=3
---sclass=ACC --station=UK608 --ts=20120611_124534
--o json --oprefix=20120611_124534_acc_512x192x192
+issConverter.py --rawfile=20120611_124534_acc_512x192x192.dat --standard
+--rcumode=3 --station=UK608 -o json --oprefix=20120611_124534_acc_512x192x192
 \end{verbatim}
 
 \subsubsection{Beamlet Statistics (BST)}
 
 \begin{verbatim}
-issConverter.py --rawfile=20170217_111340_bst_00X.dat --rcumode=3
---sclass=BST --station=UK608 --ts=20170217_111340
---beamlet=beamlets1.csv
+issConverter.py --rawfile=20170217_111340_bst_00X.dat --standard
+--rcumode=3 --station=UK608 --beamlet=beamlets1.csv
 -o json --oprefix=20170217_111340_bst_00X
 \end{verbatim}
 
@@ -561,9 +562,8 @@ format is a header (\#...) followed by a line for each beamlet:
 \subsubsection{Subband Statistics (SST)}
 
 \begin{verbatim}
-issConverter.py --rawfile=20140430_153356_sst_rcu024.dat --rcumode=3
---sclass=SST --station=KAIRA --ts=20140430_153356
--o json --oprefix=20140430_153356_sst_rcu024
+issConverter.py --rawfile=20140430_153356_sst_rcu024.dat --standard
+--rcumode=3 --station=KAIRA -o json --oprefix=20140430_153356_sst_rcu024
 \end{verbatim}
 
 
@@ -571,8 +571,7 @@ issConverter.py --rawfile=20140430_153356_sst_rcu024.dat --rcumode=3
 
 \begin{verbatim}
 issConverter.py --rawfile=20170728_184348_sb180_xst.dat --rcumode=3
---sclass=XST --station=IE613 --subband=180 --ts=20170728_184348
--o json --oprefix=20170728_184348_sb180_xst
+--standard --station=IE613 -o json --oprefix=20170728_184348_sb180_xst
 \end{verbatim}
 
 \end{document}             % End of document.
