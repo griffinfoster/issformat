@@ -40,7 +40,9 @@ data. It is useful to keep a common naming convention for this file by replacing
 the .dat extension with a .json extension. In addition, an HDF5 format is
 defined to wrapper the raw data and provide the metadata as attributes. In this
 document the metadata is defined, along with the JSON format, HDF5 format, and a
-python module which can be used to interface with these file types.
+python module which can be used to interface with these file types. This
+document is based on the latest (v1.2) station observing manual
+\cite{LOFAR-ASTRON-MAN-064}.
 
 \section{Statistics File Types}
 
@@ -86,10 +88,14 @@ floats (real and imaginary, to make a 64-bit complex number). The data is of the
 form (nintegrations $\times$ 1 subband $\times$ nantpol $\times$ nantpol), where
 nantpol is 192 (96 antenna elements, 2 polarizations) for an international
 station. Note, KAIRA has only 48 antenna elements.  The standard naming
-convention is \texttt{YYYYMMDD\_HHMMSS\_sbSBID\_xst.dat}, e.g.
-\texttt{20170728\_184348\_sb180\_xst.dat}.  See \texttt{xst2npy()} for how to
-read in an XST file to a numpy array.
+convention is \texttt{YYYYMMDD\_HHMMSS\_sbSBID\_xst.dat} or
+\texttt{YYYYMMDD\_HHMMSS\_xst.dat}, e.g. \\
+\texttt{20170728\_184348\_sb180\_xst.dat} and
+\texttt{20170728\_184348\_xst.dat}.  See \texttt{xst2npy()} for how to read in
+an XST file to a numpy array.
 \\
+
+% TODO: standard name table
 
 \section{Metadata Key Definitions}
 
@@ -516,7 +522,7 @@ In addition to the class definitions there are a set of useful functions in
     tile based on the input hexadecimal string.
 \end{itemize}
 
-\subsection{Usage}
+\subsection{Examples}
 
 The command line interface to \texttt{issformat} is the \texttt{issConverter.py}
 script. For in-line documentation use the help flag:
@@ -573,6 +579,11 @@ issConverter.py --rawfile=20140430_153356_sst_rcu024.dat --standard
 issConverter.py --rawfile=20170728_184348_sb180_xst.dat --rcumode=3
 --standard --station=IE613 -o json --oprefix=20170728_184348_sb180_xst
 \end{verbatim}
+
+\section{References}
+
+\bibliography{refs}
+\bibliographystyle{ieeetr}
 
 \end{document}             % End of document.
 

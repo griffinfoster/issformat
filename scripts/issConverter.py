@@ -28,9 +28,15 @@ if __name__ == '__main__':
         help = 'Output filename prefix, default: temp')
     o.add_option('--print', dest='printMeta', action='store_true',
         help = 'Print metadata')
-
+    o.add_option('--force', dest='force', action='store_true',
+        help = 'Force overwriting of an already existing metadata file, otherwise skip')
     o.add_option('--standard', dest='standard', action='store_true',
-        help = 'Assume the standard filenaming format for the input rawfile, the timestamp and data class can be determined from this. Additional information RCU (SST), pol (BST), subband (XST) is also extracted. Note: this option overrides an input JSON or HDF5 file.')
+        help = 'Assume the standard filenaming format for the input rawfile, the timestamp and data class can be determined from this. Additional information RCU (SST), pol (BST), subband (XST) is also extracted. Note: this option overrides an input JSON or HDF5 file. Example standard formats: 20120611_124534_acc_512x192x192.dat (ACC) 20170217_111340_bst_00X.dat (BST) 20140430_153356_sst_rcu024.dat (SST) 20170728_184348_sb180_xst.dat (XST) 20170728_184348_xst.dat (XST)')
+            # ACC: 20120611_124534_acc_512x192x192.dat
+            # BST: 20170217_111340_bst_00X.dat
+            # SST: 20140430_153356_sst_rcu024.dat
+            # XST: 20170728_184348_sb180_xst.dat
+            # XST: 20170728_184348_xst.dat
     o.add_option('--beamlet', dest='beamlet', default=None,
         help = '(BST) Beamlet file, list of entries: BID THETA PHI COORD SB RCUS, see documentation for details, default: None')
     o.add_option('--bitmode', dest='bitmode', choices=['4','8','16', 'None'], default=None,
@@ -111,6 +117,7 @@ if __name__ == '__main__':
             # BST: 20170217_111340_bst_00X.dat
             # SST: 20140430_153356_sst_rcu024.dat
             # XST: 20170728_184348_sb180_xst.dat
+            # XST: 20170728_184348_xst.dat
             rawfile = os.path.basename(opts.rawfile)
             ts = rawfile.split('_')[0] + '_' + rawfile.split('_')[1]
 
@@ -124,8 +131,10 @@ if __name__ == '__main__':
                 rcu = int(rawfile.split('.')[0].split('rcu')[1])
                 s = issformat.SST(ts=ts, rawfile=rawfile, rcu=rcu)
             elif '_xst' in rawfile: # XST
-                sb = int(rawfile.split('_')[2].split('sb')[1])
-                s = issformat.XST(ts=ts, rawfile=rawfile, sb=sb)
+                if '_sb' in rawfile: # some stations add in the subband ID
+                    sb = int(rawfile.split('_')[2].split('sb')[1])
+                    s = issformat.XST(ts=ts, rawfile=rawfile, sb=sb)
+                else: s = issformat.XST(ts=ts, rawfile=rawfile) # the default mode is not to include the subband in the filename
             else:
                 print('WARNING: unknown file type %s when using --standard flag.'%rawfile)
 
@@ -249,19 +258,27 @@ if __name__ == '__main__':
     # Outputs
     if opts.oprefix is None: oprefix = 'temp'
     else: oprefix = opts.oprefix
+
     if 'raw' in outputTypes:
         oraw = oprefix + '.dat'
-        print('Writing data to RAW', oraw)
-        if type(s).__name__=='ACC': issformat.npy2acc(oraw)
-        elif type(s).__name__=='BST': issformat.npy2bst(oraw)
-        elif type(s).__name__=='SST': issformat.npy2sst(oraw)
-        elif type(s).__name__=='XST': issformat.npy2xst(oraw)
+        if not os.path.exists(oraw) or opts.force:
+            print('Writing data to RAW', oraw)
+            if type(s).__name__=='ACC': issformat.npy2acc(oraw)
+            elif type(s).__name__=='BST': issformat.npy2bst(oraw)
+            elif type(s).__name__=='SST': issformat.npy2sst(oraw)
+            elif type(s).__name__=='XST': issformat.npy2xst(oraw)
+        else: print('WARNING: %s exists, skipping. Use --force option to overwrite'%oraw)
+
     if 'json' in outputTypes:
         ojson = oprefix + '.json'
-        print('Writing data to JSON', ojson)
-        s.writeJSON(ojson)
+        if not os.path.exists(ojson) or opts.force:
+            print('Writing data to JSON', ojson)
+            s.writeJSON(ojson)
+        else: print('WARNING: %s exists, skipping. Use --force option to overwrite'%ojson)
     if 'hdf5' in outputTypes:
         ohdf5 = oprefix + '.h5'
-        print('Writing data to HDF5', ohdf5)
-        s.writeHDF5(ohdf5)
+        if not os.path.exists(ohdf5) or opts.force:
+            print('Writing data to HDF5', ohdf5)
+            s.writeHDF5(ohdf5)
+        else: print('WARNING: %s exists, skipping. Use --force option to overwrite'%ohdf5)
 
