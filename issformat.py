@@ -18,6 +18,15 @@ try:
 except ImportError:
     H5SUPPORT = False
 
+VALIDSTATIONS = [ 'CS001', 'CS002', 'CS003', 'CS004', 'CS005', 'CS006', 'CS007',
+                  'CS011', 'CS013', 'CS017', 'CS021', 'CS024', 'CS026', 'CS028',
+                  'CS030', 'CS031', 'CS032', 'CS101', 'CS103', 'CS201', 'CS301',
+                  'CS302', 'CS401', 'CS501', 'DE601', 'DE602', 'DE603', 'DE604',
+                  'DE605', 'DE609', 'FI609', 'FR606', 'IE613', 'KAIRA', 'PL610',
+                  'PL611', 'PL612', 'RS106', 'RS205', 'RS208', 'RS210', 'RS305',
+                  'RS306', 'RS307', 'RS310', 'RS406', 'RS407', 'RS409', 'RS503',
+                  'RS508', 'RS509', 'RS511', 'SE607', 'UK608']
+
 # TODO: unittests
 
 """
@@ -46,6 +55,7 @@ class statData(object):
         self.setIntegration(integration)
 
     def setStation(self, station=None):
+        if not (station in VALIDSTATIONS): print('WARNING: %s not in valid station list.')
         self.station = station # Station ID string
 
     def setRCUmode(self, rcumode=None):

@@ -15,21 +15,22 @@ from __future__ import print_function
 
 import sys,os
 import issformat
+import pkg_resources  # part of setuptools, for version
 
 if __name__ == '__main__':
     from optparse import OptionParser
     o = OptionParser()
     o.set_usage('%prog [options] JSON/HDF5/dat files')
     o.set_description(__doc__)
-    o.add_option('-o', '--output', dest='output', default=None,
-        help = 'Output file type: hdf5, json, raw, default: None')
+    o.add_option('-o', '--outputtype', dest='outputType', default=None,
+        help = 'Type of file to output, can be multiple with comma separated list: hdf5, json, raw, default: None')
     o.add_option('--oprefix', dest='oprefix', default=None,
         help = 'Output filename prefix, default: temp')
     o.add_option('--print', dest='printMeta', action='store_true',
         help = 'Print metadata')
 
     o.add_option('--standard', dest='standard', action='store_true',
-        help = 'Assume the standard filenaming format for the input rawfile, the timestamp and data class can be determined from this. Additional information RCU (SST), pol (BST), subband (XST) is also extracted. Note: this option overrides an input JSON or HDF5 fle.')
+        help = 'Assume the standard filenaming format for the input rawfile, the timestamp and data class can be determined from this. Additional information RCU (SST), pol (BST), subband (XST) is also extracted. Note: this option overrides an input JSON or HDF5 file.')
     o.add_option('--beamlet', dest='beamlet', default=None,
         help = '(BST) Beamlet file, list of entries: BID THETA PHI COORD SB RCUS, see documentation for details, default: None')
     o.add_option('--bitmode', dest='bitmode', choices=['4','8','16', 'None'], default=None,
@@ -60,11 +61,22 @@ if __name__ == '__main__':
         help = '(XST) subband ID, default: None')
     o.add_option('--ts', dest='ts', default=None,
         help = 'Timestamp of format YYYY-MM-DD HH:MM:SS or YYYYMMDD_HHMMSS, default: None')
+    o.add_option('-v', '--version', action='store_true',
+        help = 'Print version and exit')
     opts, args = o.parse_args(sys.argv[1:])
 
+    if opts.version:
+        print('Version', pkg_resources.require('issformat')[0].version)
+        exit()
+
     # Parse output types
-    if opts.output is None: omodes = []
-    else: omodes = opts.output.split(',')
+    if opts.outputType is None: outputTypes = []
+    else: outputTypes = opts.outputType.split(',')
+    # Check that outputTypes are valid
+    valOutputTypes = ['json', 'hdf5', 'raw']
+    for otype in outputTypes:
+        if not (otype in valOutputTypes):
+            print('WARNING: %s output type unknown, only valid types are:'%otype, valOutputTypes)
 
     dd = None # extracted data
     s = None # meta data class instance
@@ -72,7 +84,7 @@ if __name__ == '__main__':
     # read in inputs
     for fn in args:
         if fn.endswith('.h5'): # HDF5
-            if 'raw' in omodes: # extract data
+            if 'raw' in outputTypes: # extract data
                 s, dd = issformat.read(fn, getdata=True)
             else:
                 s = issformat.read(fn)
@@ -175,8 +187,8 @@ if __name__ == '__main__':
             if not(opts.nant is None): s.setArrayProp(nants=opts.nant, npol=opts.npol)
 
             if not(opts.subband is None):
-                if opts.subband=='none': s.setSubband(subband=None)
-                else: s.setSubband(subband=opts.subband)
+                if opts.subband=='none': s.setSubband(sb=None)
+                else: s.setSubband(sb=opts.subband)
 
     else: # generate a new meta data instance
         if opts.sclass.upper().startswith('ACC'):
@@ -237,18 +249,18 @@ if __name__ == '__main__':
     # Outputs
     if opts.oprefix is None: oprefix = 'temp'
     else: oprefix = opts.oprefix
-    if 'raw' in omodes:
+    if 'raw' in outputTypes:
         oraw = oprefix + '.dat'
         print('Writing data to RAW', oraw)
         if type(s).__name__=='ACC': issformat.npy2acc(oraw)
         elif type(s).__name__=='BST': issformat.npy2bst(oraw)
         elif type(s).__name__=='SST': issformat.npy2sst(oraw)
         elif type(s).__name__=='XST': issformat.npy2xst(oraw)
-    if 'json' in omodes:
+    if 'json' in outputTypes:
         ojson = oprefix + '.json'
         print('Writing data to JSON', ojson)
         s.writeJSON(ojson)
-    if 'hdf5' in omodes:
+    if 'hdf5' in outputTypes:
         ohdf5 = oprefix + '.h5'
         print('Writing data to HDF5', ohdf5)
         s.writeHDF5(ohdf5)
