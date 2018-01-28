@@ -17,7 +17,7 @@ Metadata and wrapper format for LOFAR international single station data sets. Us
 
 #### Install
 
-The latest release (0.0.2 as of January 25, 2018) can be installed via pip:
+The latest release (0.0.3 as of January 28, 2018) can be installed via pip:
 
 ```
 pip install issformat
