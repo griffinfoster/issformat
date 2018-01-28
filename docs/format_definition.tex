@@ -1,5 +1,7 @@
 \documentclass[10pt,a4paper]{article}
 
+\usepackage{rotating}
+
 %\usepackage{verbatim}
 %\usepackage{fancyhdr}
 %\usepackage{graphicx}
@@ -95,7 +97,23 @@ convention is \texttt{YYYYMMDD\_HHMMSS\_sbSBID\_xst.dat} or
 an XST file to a numpy array.
 \\
 
-% TODO: standard name table
+\begin{table}[]
+\scriptsize
+\centering
+\begin{tabular}{rll}
+\textbf{File Type} & \textbf{Format}                                         & \textbf{Example}     \\
+\hline
+ACC       & YYYYMMDD\_HHMMSS\_acc\_512xNANTPOLxNANTPOL.dat & 20120611\_124534\_acc\_512x192x192.dat \\
+BST       & YYYYMMDD\_HHMMSS\_bst\_00POL.dat               & 20170217\_111340\_bst\_00X.dat         \\
+SST       & YYYYMMDD\_HHMMSS\_sst\_rcuRCUID.dat            & 20140430\_153356\_sst\_rcu024.dat      \\
+XST       & YYYYMMDD\_HHMMSS\_xst.dat                      & 20170728\_184348\_xst.dat              \\
+XST       & YYYYMMDD\_HHMMSS\_sbSBID\_xst.dat              & 20170728\_184348\_sb180\_xst.dat       
+\end{tabular}
+\caption{Standard filenaming formats. NANTPOL=192 for an international station.
+POL: X or Y. RCUID ranges 0-191 for a 96 element international station. SBID
+ranges 0-511, can be zero padded or not.}
+\label{tbl:filenaming}
+\end{table}
 
 \section{Metadata Key Definitions}
 
@@ -535,16 +553,20 @@ issConverter.py -h
 
 \begin{verbatim}
 issConverter.py --rawfile=20120611_124534_acc_512x192x192.dat --standard
---rcumode=3 --station=UK608 -o json --oprefix=20120611_124534_acc_512x192x192
+--rcumode=3 --station=UK608 -o json
 \end{verbatim}
+
+\noindent Returns \texttt{20120611\_124534\_acc\_512x192x192.json}.
 
 \subsubsection{Beamlet Statistics (BST)}
 
 \begin{verbatim}
 issConverter.py --rawfile=20170217_111340_bst_00X.dat --standard
 --rcumode=3 --station=UK608 --beamlet=beamlets1.csv
--o json --oprefix=20170217_111340_bst_00X
+-o json
 \end{verbatim}
+
+\noindent Returns \texttt{20170217\_111340\_bst\_00X.json}.
 
 Since the beamlets require a significant amount of input it is not possible to
 enter them directly on the command line. Instead a text file must be used. The
@@ -572,6 +594,7 @@ issConverter.py --rawfile=20140430_153356_sst_rcu024.dat --standard
 --rcumode=3 --station=KAIRA -o json --oprefix=20140430_153356_sst_rcu024
 \end{verbatim}
 
+\noindent Returns \texttt{20140430\_153356\_sst\_rcu024.json}.
 
 \subsubsection{Subband Correlation (XST)}
 
@@ -580,7 +603,7 @@ issConverter.py --rawfile=20170728_184348_sb180_xst.dat --rcumode=3
 --standard --station=IE613 -o json --oprefix=20170728_184348_sb180_xst
 \end{verbatim}
 
-\section{References}
+\noindent Returns \texttt{20170728\_184348\_sb180\_xst.dat}.
 
 \bibliography{refs}
 \bibliographystyle{ieeetr}

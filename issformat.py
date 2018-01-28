@@ -55,7 +55,7 @@ class statData(object):
         self.setIntegration(integration)
 
     def setStation(self, station=None):
-        if not (station in VALIDSTATIONS): print('WARNING: %s not in valid station list.')
+        #if not (station in VALIDSTATIONS): print('WARNING: %s not in valid station list.'%station)
         self.station = station # Station ID string
 
     def setRCUmode(self, rcumode=None):
